@@ -451,7 +451,7 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     }
 
     /***********************************|
-    |         SAFT Token Transfer       |
+    |         SAFE Token Transfer       |
     |__________________________________*/
 
     function doTransferIn(address tokenAddr, address from, uint amount) internal returns (bool result) {
