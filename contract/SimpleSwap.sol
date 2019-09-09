@@ -62,8 +62,8 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     |__________________________________*/
 
     function setFee(uint256 newFee) external onlyOwner{
-    	require(newFee <= 30000000000000000); //fee must be smaller than 3%
-    	feeRate = newFee;
+        require(newFee <= 30000000000000000); //fee must be smaller than 3%
+        feeRate = newFee;
     }
 
     function createAdapter(uint256 _id, string memory _name, string memory _symbol, uint8 _decimals) public onlyOwner {
@@ -119,16 +119,34 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         require(tokens_bought >= min_tokens);
         require(doTransferIn(USDX, buyer, USDX_sold));
         require(doTransferOut(token, recipient, tokens_bought));
-        
+
         emit TokenPurchase(buyer, token, USDX_sold, tokens_bought);
         return tokens_bought;
     }
 
+    /**
+     * @notice Convert USDX to tokens.
+     * @dev User specifies exact USDX input && minium output.
+     * @param token Address of Tokens bought.
+     * @param USDX_sold Amount of USDX user wants to pay.
+     * @param min_tokens Minium Tokens bought.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return Amount of Tokens bought.
+     */
     function USDXToTokenSwapInput(address token, uint256 USDX_sold,  uint256 min_tokens, uint256 deadline) public returns (uint256) {
         return USDXToTokenInput(token, USDX_sold, min_tokens, deadline, msg.sender, msg.sender);
     }
 
-
+    /**
+     * @notice Convert USDX to Tokens && transfers Tokens to recipient.
+     * @dev User specifies exact USDX input && minium output.
+     * @param token Address of Tokens bought.
+     * @param USDX_sold Amount of USDX user wants to pay.
+     * @param min_tokens Minium Tokens bought.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @param recipient The addresss that recieves output Tokens.
+     * @return Amount of Token bought.
+     */
     function USDXToTokenTransferInput(address token, uint256 USDX_sold, uint256 min_tokens, uint256 deadline, address recipient) public returns(uint256) {
         require(recipient != address(this) && recipient != address(0));
         return USDXToTokenInput(token, USDX_sold, min_tokens, deadline, msg.sender, recipient);
@@ -150,12 +168,29 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         return USDX_sold;
     }
 
-
+    /**
+     * @notice Convert USDX to Tokens.
+     * @dev User specifies maxium USDX input && exact output.
+     * @param token Address of Tokens bought.
+     * @param tokens_bought Amount of token bought.
+     * @param max_USDX Maxium amount of USDX sold.
+     * @param deadline Time after which this transaction can be no longer be executed.
+     * @return Amount of USDX sold.
+     */
     function USDXToTokenSwapOutput(address token, uint256 tokens_bought, uint256 max_USDX, uint256 deadline) public returns(uint256) {
         return USDXToTokenOutput(token, tokens_bought, max_USDX, deadline, msg.sender, msg.sender);
     }
 
-
+    /**
+     * @notice Convert USDX to Tokens && transfer Tokens to recipient.
+     * @dev User specifies maxium USDX input && exact output.
+     * @param token Address of Tokens bought.
+     * @param tokens_bought Amount of token bought.
+     * @param max_USDX Maxium amount of USDX sold.
+     * @param deadline Time after which this transaction can be no longer be executed.
+     * @param recipient The address the receives output Tokens.
+     * @return Amount of USDX sold.
+     */
     function USDXToTokenTransferOutput(address token, uint256 tokens_bought, uint256 max_USDX, uint256 deadline, address recipient) public returns (uint256) {
         require(recipient != address(this) && recipient != address(0));
         return USDXToTokenOutput(token, tokens_bought, max_USDX, deadline, msg.sender, recipient);
@@ -177,16 +212,34 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         return USDX_bought;
     }
 
+    /**
+     * @notice Convert Tokens to USDX.
+     * @dev User specifies exact input && minium output.
+     * @param token Address of Tokens sold.
+     * @param tokens_sold Amount of Tokens sold.
+     * @param min_USDX Minium USDX purchased.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return Amount of USDX bought.
+     */
     function tokenToUSDXSwapInput(address token, uint256 tokens_sold, uint256 min_USDX, uint256 deadline) public returns (uint256) {
         return tokenToUSDXInput(token, tokens_sold, min_USDX, deadline, msg.sender, msg.sender);
     }
 
+    /**
+     * @notice Convert Tokens to USDX && transfer USDX to recipient.
+     * @dev User specifies exact input && minium output.
+     * @param token The address of Tokens sold.
+     * @param tokens_sold Amount of Tokens sold.
+     * @param min_USDX Minium USDX purchased.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @param recipient The address that receives output USDX.
+     * @return Amount of USDX bought.
+     */
     function tokenToUSDXTransferInput(address token, uint256 tokens_sold, uint256 min_USDX, uint256 deadline, address recipient) public returns (uint256) {
         require(recipient != address(this) && recipient != address(0));
         return tokenToUSDXInput(token, tokens_sold, min_USDX, deadline, msg.sender, recipient);
     }
 
-    
     function tokenToUSDXOutput(address token, uint256 USDX_bought, uint256 max_tokens, uint256 deadline, address buyer, address recipient) private returns (uint256) {
         //check if such trading pair exists
         require(totalSupply[uint256(token)] > 0);
@@ -203,10 +256,29 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         return tokens_sold;
     }
 
+    /**
+     * @notice Convert Tokens to USDX.
+     * @dev User specifies maxium input && exact output.
+     * @param token Address of Tokens sold.
+     * @param USDX_bought Amount of USDX bought.
+     * @param max_tokens Maxium Tokens sold.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return Amount of Tokens sold.
+     */
     function tokenToUSDXSwapOutput(address token, uint256 USDX_bought, uint256 max_tokens, uint256 deadline) public returns (uint256) {
         return tokenToUSDXOutput(token, USDX_bought, max_tokens, deadline, msg.sender, msg.sender);
     }
 
+    /**
+     * @notice Convert Tokens to USDX && transfers USDX to recipient.
+     * @dev User specifies maxium input && exact output.
+     * @param token Address of Tokens sold.
+     * @param USDX_bought Amount of USDX bought.
+     * @param max_tokens Maxium Tokens sold.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @param recipient The address that receives output USDX.
+     * @return Amount of Tokens sold.
+     */
     function tokenToUSDXTransferOutput(address token, uint256 USDX_bought, uint256 max_tokens, uint256 deadline, address  recipient) public returns (uint256) {
         require(recipient != address(this) && recipient != address(0));
         return tokenToUSDXOutput(token, USDX_bought, max_tokens, deadline, msg.sender, recipient);
@@ -215,12 +287,12 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     function tokenToTokenInput(
         address inputToken,
         address outputToken,
-        uint256 tokens_sold, 
+        uint256 tokens_sold,
         uint256 min_tokens_bought,
         uint256 deadline,
-        address buyer, 
-        address recipient) 
-        private returns (uint256) 
+        address buyer,
+        address recipient)
+        private returns (uint256)
     {
         //check if such trading pair exists
         require(totalSupply[uint256(inputToken)] > 0 && totalSupply[uint256(outputToken)] > 0);
@@ -230,11 +302,11 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
 
         uint256 output_token_reserve = ERC20(outputToken).balanceOf(address(this));
         uint256 token_bought = getInputPrice(USDX_bought, USDXReserveOf[outputToken], output_token_reserve);
-        
+
         // move USDX reserve
         USDXReserveOf[inputToken] = USDXReserveOf[inputToken].sub(USDX_bought);
         USDXReserveOf[outputToken] = USDXReserveOf[outputToken].add(USDX_bought);
-        
+
         // do input/output token transfer
         require(min_tokens_bought <= token_bought);
         require(doTransferIn(inputToken, buyer, tokens_sold));
@@ -245,47 +317,68 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         return token_bought;
     }
 
+    /**
+     * @notice Convert Tokens to Tokens.
+     * @dev User specifies exact input && minium output.
+     * @param inputToken Address of Tokens sold.
+     * @param outputToken Address of Tokens bought.
+     * @param tokens_sold Amount of Tokens sold.
+     * @param min_tokens_bought Minium amount of Tokens bought.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return Amount of Tokens bought.
+     */
     function tokenToTokenSwapInput(
         address inputToken,
         address outputToken,
-        uint256 tokens_sold, 
+        uint256 tokens_sold,
         uint256 min_tokens_bought,
-        uint256 deadline) 
-        public returns (uint256) 
+        uint256 deadline)
+        public returns (uint256)
     {
-        return tokenToTokenInput(inputToken, outputToken, tokens_sold,  min_tokens_bought, deadline, msg.sender, msg.sender); 
+        return tokenToTokenInput(inputToken, outputToken, tokens_sold,  min_tokens_bought, deadline, msg.sender, msg.sender);
     }
 
+    /**
+     * @notice Convert Tokens to Tokens && transfers Tokens to recipient.
+     * @dev User specifies exact input && minium output.
+     * @param inputToken Address of Tokens sold.
+     * @param outputToken Address of Tokens bought.
+     * @param tokens_sold Amount of Tokens sold.
+     * @param min_tokens_bought Minium amount of Tokens bought.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @param recipient The address that recieves output token.
+     * @return Amount of Tokens bought.
+     */
     function tokenToTokenTransferInput(
         address inputToken,
         address outputToken,
-        uint256 tokens_sold, 
-        uint256 min_tokens_bought, 
-        uint256 deadline, 
-        address recipient) 
-        public returns (uint256) 
+        uint256 tokens_sold,
+        uint256 min_tokens_bought,
+        uint256 deadline,
+        address recipient)
+        public returns (uint256)
     {
-        return tokenToTokenInput(inputToken, outputToken, tokens_sold,  min_tokens_bought, deadline, msg.sender, recipient); 
+        return tokenToTokenInput(inputToken, outputToken, tokens_sold,  min_tokens_bought, deadline, msg.sender, recipient);
     }
-    
+
     function tokenToTokenOutput(
         address inputToken,
         address outputToken,
-        uint256 tokens_bought, 
+        uint256 tokens_bought,
         uint256 max_tokens_sold,
-        uint256 deadline, 
-        address buyer, 
-        address recipient) 
-        private returns (uint256) 
+        uint256 deadline,
+        address buyer,
+        address recipient)
+        private returns (uint256)
     {
         //check if such trading pair exists
         require(totalSupply[uint256(inputToken)] > 0 && totalSupply[uint256(outputToken)] > 0);
         require(deadline >= block.timestamp && tokens_bought > 0);
         uint256 output_token_reserve = ERC20(outputToken).balanceOf(address(this));
         uint256 USDX_bought = getOutputPrice(tokens_bought, USDXReserveOf[outputToken], output_token_reserve);
-        
+
         uint256 input_token_reserve;
-        uint256 tokens_sold; 
+        uint256 tokens_sold;
         (input_token_reserve, tokens_sold) = tokenToTokenOutputHelper(inputToken,USDX_bought);
 
         // move USDX reserve
@@ -300,39 +393,59 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         emit TokenPurchase(buyer, outputToken, USDX_bought, tokens_bought);
         return tokens_sold;
     }
-    
+
     function tokenToTokenOutputHelper(address inputToken, uint256 USDX_bought) private view returns(uint256, uint256) {
         uint256 input_token_reserve = ERC20(inputToken).balanceOf(address(this));
         uint256 tokens_sold = getOutputPrice(USDX_bought, input_token_reserve, USDXReserveOf[inputToken]);
         return (input_token_reserve, tokens_sold);
     }
 
+    /**
+     * @notice Convert Tokens to Tokens.
+     * @dev User specifies maxium input && exact output.
+     * @param inputToken Address of Tokens sold.
+     * @param outputToken Address of Tokens bought.
+     * @param tokens_bought Amount of Tokens bought.
+     * @param max_tokens_sold Maxium amount of Tokens sold.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return Amount of Tokens sold.
+     */
     function tokenToTokenSwapOutput(
         address inputToken,
         address outputToken,
-        uint256 tokens_bought, 
+        uint256 tokens_bought,
         uint256 max_tokens_sold,
-        uint256 deadline) 
-        public returns (uint256) 
+        uint256 deadline)
+        public returns (uint256)
     {
         return tokenToTokenOutput(inputToken, outputToken, tokens_bought, max_tokens_sold, deadline, msg.sender, msg.sender);
     }
 
-
+    /**
+     * @notice Convert Tokens to Tokens && transfers Tokens to recipient.
+     * @dev User specifies maxium input && exact output.
+     * @param inputToken Address of Tokens sold.
+     * @param outputToken Address of Tokens bought.
+     * @param tokens_bought Amount of Tokens bought.
+     * @param max_tokens_sold Maxium amount of Tokens sold.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @param recipient The address that receives output Tokens.
+     * @return Amount of Tokens sold.
+     */
     function tokenToTokenTransferOutput(
         address inputToken,
         address outputToken,
-        uint256 tokens_bought, 
+        uint256 tokens_bought,
         uint256 max_tokens_sold,
-        uint256 deadline, 
-        address recipient) 
-        public returns (uint256) 
+        uint256 deadline,
+        address recipient)
+        public returns (uint256)
     {
 
         return tokenToTokenOutput(inputToken, outputToken, tokens_bought, max_tokens_sold, deadline, msg.sender, recipient);
     }
 
-    
+
     /***********************************|
     |         Getter Functions          |
     |__________________________________*/
@@ -391,6 +504,16 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     |        Liquidity Functions        |
     |__________________________________*/
 
+    /**
+     * @notice Deposit USDX && Tokens at current ratio to mint liquidity tokens.
+     * @dev min_liquidity does nothing when total liquidity supply is 0.
+     * @param token Address of Tokens reserved
+     * @param reserveAdded Amount of USDX reserved
+     * @param min_liquidity Minium number of liquidity sender will mint if total liquidity supply is greater than 0.
+     * @param max_tokens Maxium number of tokens deposited. Deposits max amount if total liquidity supply is 0.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return Amoutn of Liquidity minted
+     */
     function addLiquidity(address token, uint256 reserveAdded, uint256 min_liquidity, uint256 max_tokens, uint256 deadline) public payable returns (uint256) {
         require(deadline >= block.timestamp && max_tokens > 0 && reserveAdded > 0);
         uint256 total_liquidity = totalSupply[uint256(token)];
@@ -430,6 +553,16 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         }
     }
 
+    /**
+     * @notice Withdraw USDX && Tokens at current ratio to burn liquidity tokens.
+     * @dev Burn liquidity tokens to withdraw USDX && Tokens at current ratio.
+     * @param token Address of Tokens withdrawn.
+     * @param amount Amount of liquidity burned.
+     * @param min_USDX Minium USDX withdrawn.
+     * @param min_tokens Minium Tokens withdrawn.
+     * @param deadline Time after which this transaction can no longer be executed.
+     * @return The amount of USDX && Tokens withdrawn.
+     */
     function removeLiquidity(address token, uint256 amount, uint256 min_USDX, uint256 min_tokens, uint256 deadline) public returns (uint256, uint256) {
         require(amount > 0 && deadline >= block.timestamp && min_USDX > 0 && min_tokens > 0);
         uint256 total_liquidity = totalSupply[uint256(token)];
