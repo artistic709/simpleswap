@@ -5,7 +5,7 @@ import "ERC1155Adapter-flat.sol";
 contract Ownable {
     address public owner;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previous_owner, address indexed new_owner);
     /**
      * @dev The Ownable constructor sets the original `owner` of the contract to the sender
      * account.
@@ -22,16 +22,16 @@ contract Ownable {
     }
     /**
     * @dev Allows the current owner to transfer control of the contract to a newOwner.
-    * @param newOwner The address to transfer ownership to.
+    * @param new_owner The address to transfer ownership to.
     */
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0));
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
+    function transferOwnership(address new_owner) public onlyOwner {
+        require(new_owner != address(0));
+        emit OwnershipTransferred(owner, new_owner);
+        owner = new_owner;
     }
 }
 
-contract ERC20{
+contract ERC20 {
     function balanceOf(address) external view returns(uint256);
     function transfer(address to, uint256 amount) external returns(bool);
     function transferFrom(address from, address to, uint256 amount) external returns(bool);
@@ -50,9 +50,6 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     event AddLiquidity(address indexed provider, address indexed token, uint256 usdx_amount, uint256 token_amount);
     event RemoveLiquidity(address indexed provider, address indexed token, uint256 usdx_amount, uint256 token_amount);
 
-    //mapping(address => address) public getExchange;
-    //mapping(address => address) public getToken;
-
     mapping(address => uint256) public USDXReserveOf;
     uint256 public feeRate = 3000000000000000;
     address public USDX = address(0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371);
@@ -61,9 +58,9 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     |        Manager Functions          |
     |__________________________________*/
 
-    function setFee(uint256 newFee) external onlyOwner{
-        require(newFee <= 30000000000000000); //fee must be smaller than 3%
-        feeRate = newFee;
+    function setFee(uint256 new_fee) external onlyOwner{
+        require(new_fee <= 30000000000000000); //fee must be smaller than 3%
+        feeRate = new_fee;
     }
 
     function createAdapter(uint256 _id, string memory _name, string memory _symbol, uint8 _decimals) public onlyOwner {
@@ -285,8 +282,8 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     }
 
     function tokenToTokenInput(
-        address inputToken,
-        address outputToken,
+        address input_token,
+        address output_token,
         uint256 tokens_sold,
         uint256 min_tokens_bought,
         uint256 deadline,
@@ -295,54 +292,54 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         private returns (uint256)
     {
         //check if such trading pair exists
-        require(totalSupply[uint256(inputToken)] > 0 && totalSupply[uint256(outputToken)] > 0);
+        require(totalSupply[uint256(input_token)] > 0 && totalSupply[uint256(output_token)] > 0);
         require(deadline >= block.timestamp && tokens_sold > 0 && min_tokens_bought > 0);
-        uint256 input_token_reserve = ERC20(inputToken).balanceOf(address(this));
-        uint256 USDX_bought = getInputPrice(tokens_sold, input_token_reserve, USDXReserveOf[inputToken]);
+        uint256 input_token_reserve = ERC20(input_token).balanceOf(address(this));
+        uint256 USDX_bought = getInputPrice(tokens_sold, input_token_reserve, USDXReserveOf[input_token]);
 
-        uint256 output_token_reserve = ERC20(outputToken).balanceOf(address(this));
-        uint256 token_bought = getInputPrice(USDX_bought, USDXReserveOf[outputToken], output_token_reserve);
+        uint256 output_token_reserve = ERC20(output_token).balanceOf(address(this));
+        uint256 token_bought = getInputPrice(USDX_bought, USDXReserveOf[output_token], output_token_reserve);
 
         // move USDX reserve
-        USDXReserveOf[inputToken] = USDXReserveOf[inputToken].sub(USDX_bought);
-        USDXReserveOf[outputToken] = USDXReserveOf[outputToken].add(USDX_bought);
+        USDXReserveOf[input_token] = USDXReserveOf[input_token].sub(USDX_bought);
+        USDXReserveOf[output_token] = USDXReserveOf[output_token].add(USDX_bought);
 
         // do input/output token transfer
         require(min_tokens_bought <= token_bought);
-        require(doTransferIn(inputToken, buyer, tokens_sold));
-        require(doTransferOut(outputToken, recipient, token_bought));
+        require(doTransferIn(input_token, buyer, tokens_sold));
+        require(doTransferOut(output_token, recipient, token_bought));
 
-        emit USDXPurchase(buyer, inputToken, tokens_sold, USDX_bought);
-        emit TokenPurchase(buyer, outputToken, USDX_bought, token_bought);
+        emit USDXPurchase(buyer, input_token, tokens_sold, USDX_bought);
+        emit TokenPurchase(buyer, output_token, USDX_bought, token_bought);
         return token_bought;
     }
 
     /**
      * @notice Convert Tokens to Tokens.
      * @dev User specifies exact input && minium output.
-     * @param inputToken Address of Tokens sold.
-     * @param outputToken Address of Tokens bought.
+     * @param input_token Address of Tokens sold.
+     * @param output_token Address of Tokens bought.
      * @param tokens_sold Amount of Tokens sold.
      * @param min_tokens_bought Minium amount of Tokens bought.
      * @param deadline Time after which this transaction can no longer be executed.
      * @return Amount of Tokens bought.
      */
     function tokenToTokenSwapInput(
-        address inputToken,
-        address outputToken,
+        address input_token,
+        address output_token,
         uint256 tokens_sold,
         uint256 min_tokens_bought,
         uint256 deadline)
         public returns (uint256)
     {
-        return tokenToTokenInput(inputToken, outputToken, tokens_sold,  min_tokens_bought, deadline, msg.sender, msg.sender);
+        return tokenToTokenInput(input_token, output_token, tokens_sold,  min_tokens_bought, deadline, msg.sender, msg.sender);
     }
 
     /**
      * @notice Convert Tokens to Tokens && transfers Tokens to recipient.
      * @dev User specifies exact input && minium output.
-     * @param inputToken Address of Tokens sold.
-     * @param outputToken Address of Tokens bought.
+     * @param input_token Address of Tokens sold.
+     * @param output_token Address of Tokens bought.
      * @param tokens_sold Amount of Tokens sold.
      * @param min_tokens_bought Minium amount of Tokens bought.
      * @param deadline Time after which this transaction can no longer be executed.
@@ -350,20 +347,20 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
      * @return Amount of Tokens bought.
      */
     function tokenToTokenTransferInput(
-        address inputToken,
-        address outputToken,
+        address input_token,
+        address output_token,
         uint256 tokens_sold,
         uint256 min_tokens_bought,
         uint256 deadline,
         address recipient)
         public returns (uint256)
     {
-        return tokenToTokenInput(inputToken, outputToken, tokens_sold,  min_tokens_bought, deadline, msg.sender, recipient);
+        return tokenToTokenInput(input_token, output_token, tokens_sold,  min_tokens_bought, deadline, msg.sender, recipient);
     }
 
     function tokenToTokenOutput(
-        address inputToken,
-        address outputToken,
+        address input_token,
+        address output_token,
         uint256 tokens_bought,
         uint256 max_tokens_sold,
         uint256 deadline,
@@ -372,60 +369,60 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         private returns (uint256)
     {
         //check if such trading pair exists
-        require(totalSupply[uint256(inputToken)] > 0 && totalSupply[uint256(outputToken)] > 0);
+        require(totalSupply[uint256(input_token)] > 0 && totalSupply[uint256(output_token)] > 0);
         require(deadline >= block.timestamp && tokens_bought > 0);
-        uint256 output_token_reserve = ERC20(outputToken).balanceOf(address(this));
-        uint256 USDX_bought = getOutputPrice(tokens_bought, USDXReserveOf[outputToken], output_token_reserve);
+        uint256 output_token_reserve = ERC20(output_token).balanceOf(address(this));
+        uint256 USDX_bought = getOutputPrice(tokens_bought, USDXReserveOf[output_token], output_token_reserve);
 
         uint256 input_token_reserve;
         uint256 tokens_sold;
-        (input_token_reserve, tokens_sold) = tokenToTokenOutputHelper(inputToken,USDX_bought);
+        (input_token_reserve, tokens_sold) = tokenToTokenOutputHelper(input_token,USDX_bought);
 
         // move USDX reserve
-        USDXReserveOf[inputToken] = USDXReserveOf[inputToken].sub(USDX_bought);
-        USDXReserveOf[outputToken] = USDXReserveOf[outputToken].add(USDX_bought);
+        USDXReserveOf[input_token] = USDXReserveOf[input_token].sub(USDX_bought);
+        USDXReserveOf[output_token] = USDXReserveOf[output_token].add(USDX_bought);
 
         require(max_tokens_sold >= tokens_sold);
-        require(doTransferIn(inputToken, buyer, tokens_sold));
-        require(doTransferOut(outputToken, recipient, tokens_bought));
+        require(doTransferIn(input_token, buyer, tokens_sold));
+        require(doTransferOut(output_token, recipient, tokens_bought));
 
-        emit USDXPurchase(buyer, inputToken, tokens_sold, USDX_bought);
-        emit TokenPurchase(buyer, outputToken, USDX_bought, tokens_bought);
+        emit USDXPurchase(buyer, input_token, tokens_sold, USDX_bought);
+        emit TokenPurchase(buyer, output_token, USDX_bought, tokens_bought);
         return tokens_sold;
     }
 
-    function tokenToTokenOutputHelper(address inputToken, uint256 USDX_bought) private view returns(uint256, uint256) {
-        uint256 input_token_reserve = ERC20(inputToken).balanceOf(address(this));
-        uint256 tokens_sold = getOutputPrice(USDX_bought, input_token_reserve, USDXReserveOf[inputToken]);
+    function tokenToTokenOutputHelper(address input_token, uint256 USDX_bought) private view returns(uint256, uint256) {
+        uint256 input_token_reserve = ERC20(input_token).balanceOf(address(this));
+        uint256 tokens_sold = getOutputPrice(USDX_bought, input_token_reserve, USDXReserveOf[input_token]);
         return (input_token_reserve, tokens_sold);
     }
 
     /**
      * @notice Convert Tokens to Tokens.
      * @dev User specifies maxium input && exact output.
-     * @param inputToken Address of Tokens sold.
-     * @param outputToken Address of Tokens bought.
+     * @param input_token Address of Tokens sold.
+     * @param output_token Address of Tokens bought.
      * @param tokens_bought Amount of Tokens bought.
      * @param max_tokens_sold Maxium amount of Tokens sold.
      * @param deadline Time after which this transaction can no longer be executed.
      * @return Amount of Tokens sold.
      */
     function tokenToTokenSwapOutput(
-        address inputToken,
-        address outputToken,
+        address input_token,
+        address output_token,
         uint256 tokens_bought,
         uint256 max_tokens_sold,
         uint256 deadline)
         public returns (uint256)
     {
-        return tokenToTokenOutput(inputToken, outputToken, tokens_bought, max_tokens_sold, deadline, msg.sender, msg.sender);
+        return tokenToTokenOutput(input_token, output_token, tokens_bought, max_tokens_sold, deadline, msg.sender, msg.sender);
     }
 
     /**
      * @notice Convert Tokens to Tokens && transfers Tokens to recipient.
      * @dev User specifies maxium input && exact output.
-     * @param inputToken Address of Tokens sold.
-     * @param outputToken Address of Tokens bought.
+     * @param input_token Address of Tokens sold.
+     * @param output_token Address of Tokens bought.
      * @param tokens_bought Amount of Tokens bought.
      * @param max_tokens_sold Maxium amount of Tokens sold.
      * @param deadline Time after which this transaction can no longer be executed.
@@ -433,8 +430,8 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
      * @return Amount of Tokens sold.
      */
     function tokenToTokenTransferOutput(
-        address inputToken,
-        address outputToken,
+        address input_token,
+        address output_token,
         uint256 tokens_bought,
         uint256 max_tokens_sold,
         uint256 deadline,
@@ -442,7 +439,7 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         public returns (uint256)
     {
 
-        return tokenToTokenOutput(inputToken, outputToken, tokens_bought, max_tokens_sold, deadline, msg.sender, recipient);
+        return tokenToTokenOutput(input_token, output_token, tokens_bought, max_tokens_sold, deadline, msg.sender, recipient);
     }
 
 
@@ -508,46 +505,46 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
      * @notice Deposit USDX && Tokens at current ratio to mint liquidity tokens.
      * @dev min_liquidity does nothing when total liquidity supply is 0.
      * @param token Address of Tokens reserved
-     * @param reserveAdded Amount of USDX reserved
+     * @param reserve_added Amount of USDX reserved
      * @param min_liquidity Minium number of liquidity sender will mint if total liquidity supply is greater than 0.
      * @param max_tokens Maxium number of tokens deposited. Deposits max amount if total liquidity supply is 0.
      * @param deadline Time after which this transaction can no longer be executed.
      * @return Amoutn of Liquidity minted
      */
-    function addLiquidity(address token, uint256 reserveAdded, uint256 min_liquidity, uint256 max_tokens, uint256 deadline) public payable returns (uint256) {
-        require(deadline >= block.timestamp && max_tokens > 0 && reserveAdded > 0);
+    function addLiquidity(address token, uint256 reserve_added, uint256 min_liquidity, uint256 max_tokens, uint256 deadline) public payable returns (uint256) {
+        require(deadline >= block.timestamp && max_tokens > 0 && reserve_added > 0);
         uint256 total_liquidity = totalSupply[uint256(token)];
 
         if (total_liquidity > 0) {
             require(min_liquidity > 0);
             uint256 token_reserve = ERC20(token).balanceOf(address(this));
-            uint256 token_amount = (reserveAdded.mul(token_reserve) / USDXReserveOf[token]).add(1);
-            uint256 liquidity_minted = reserveAdded.mul(total_liquidity) / USDXReserveOf[token];
+            uint256 token_amount = (reserve_added.mul(token_reserve) / USDXReserveOf[token]).add(1);
+            uint256 liquidity_minted = reserve_added.mul(total_liquidity) / USDXReserveOf[token];
             require(max_tokens >= token_amount && liquidity_minted >= min_liquidity);
             balances[uint256(token)][msg.sender] = balances[uint256(token)][msg.sender].add(liquidity_minted);
             totalSupply[uint256(token)] = total_liquidity.add(liquidity_minted);
-            USDXReserveOf[token] = USDXReserveOf[token].add(reserveAdded);
+            USDXReserveOf[token] = USDXReserveOf[token].add(reserve_added);
 
             require(doTransferIn(token, msg.sender, token_amount));
-            require(doTransferIn(USDX, msg.sender, reserveAdded));
+            require(doTransferIn(USDX, msg.sender, reserve_added));
 
-            emit AddLiquidity(msg.sender, token, reserveAdded, token_amount);
+            emit AddLiquidity(msg.sender, token, reserve_added, token_amount);
             emit TransferSingle(msg.sender, address(0), msg.sender, uint256(token), liquidity_minted);
             return liquidity_minted;
 
         } else {
-            require(reserveAdded >= 1000000000);
+            require(reserve_added >= 1000000000);
             uint256 token_amount = max_tokens;
-            uint256 initial_liquidity = reserveAdded;
+            uint256 initial_liquidity = reserve_added;
 
             totalSupply[uint256(token)] = initial_liquidity;
             balances[uint256(token)][msg.sender] = initial_liquidity;
-            USDXReserveOf[token] = USDXReserveOf[token].add(reserveAdded);
+            USDXReserveOf[token] = USDXReserveOf[token].add(reserve_added);
 
             require(doTransferIn(token, msg.sender, token_amount));
-            require(doTransferIn(USDX, msg.sender, reserveAdded));
+            require(doTransferIn(USDX, msg.sender, reserve_added));
 
-            emit AddLiquidity(msg.sender, token, reserveAdded, token_amount);
+            emit AddLiquidity(msg.sender, token, reserve_added, token_amount);
             emit TransferSingle(msg.sender, address(0), msg.sender, uint256(token), initial_liquidity);
             return initial_liquidity;
         }
