@@ -291,6 +291,8 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         address recipient)
         private returns (uint256)
     {
+        //check not self-swapping
+        require(input_token != output_token);
         //check if such trading pair exists
         require(totalSupply[uint256(input_token)] > 0 && totalSupply[uint256(output_token)] > 0);
         require(deadline >= block.timestamp && tokens_sold > 0 && min_tokens_bought > 0);
@@ -368,15 +370,16 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         address recipient)
         private returns (uint256)
     {
+        //check not self-swapping
+        require(input_token != output_token);
         //check if such trading pair exists
         require(totalSupply[uint256(input_token)] > 0 && totalSupply[uint256(output_token)] > 0);
         require(deadline >= block.timestamp && tokens_bought > 0);
         uint256 output_token_reserve = ERC20(output_token).balanceOf(address(this));
         uint256 USDX_bought = getOutputPrice(tokens_bought, USDXReserveOf[output_token], output_token_reserve);
 
-        uint256 input_token_reserve;
         uint256 tokens_sold;
-        (input_token_reserve, tokens_sold) = tokenToTokenOutputHelper(input_token,USDX_bought);
+        tokens_sold = tokenToTokenOutputHelper(input_token,USDX_bought);
 
         // move USDX reserve
         USDXReserveOf[input_token] = USDXReserveOf[input_token].sub(USDX_bought);
@@ -391,10 +394,10 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         return tokens_sold;
     }
 
-    function tokenToTokenOutputHelper(address input_token, uint256 USDX_bought) private view returns(uint256, uint256) {
+    function tokenToTokenOutputHelper(address input_token, uint256 USDX_bought) private view returns(uint256) {
         uint256 input_token_reserve = ERC20(input_token).balanceOf(address(this));
         uint256 tokens_sold = getOutputPrice(USDX_bought, input_token_reserve, USDXReserveOf[input_token]);
-        return (input_token_reserve, tokens_sold);
+        return  tokens_sold;
     }
 
     /**
@@ -571,6 +574,7 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
 
         balances[uint256(token)][msg.sender] = balances[uint256(token)][msg.sender].sub(amount);
         totalSupply[uint256(token)] = total_liquidity.sub(amount);
+        USDXReserveOf[token] = USDXReserveOf[token].sub(USDX_amount);
 
         require(doTransferOut(token, msg.sender, token_amount));
         require(doTransferOut(USDX, msg.sender, USDX_amount));
