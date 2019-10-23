@@ -5,31 +5,76 @@ import { BigNumber } from '@uniswap/sdk'
 import { useWeb3Context } from 'web3-react'
 import styled from 'styled-components'
 import escapeStringRegex from 'escape-string-regexp'
-import { darken, transparentize } from 'polished'
+import { darken } from 'polished'
 import Tooltip from '@reach/tooltip'
 import '@reach/tooltip/styles.css'
 import { isMobile } from 'react-device-detect'
 
 import { BorderlessInput } from '../../theme'
 import { useTokenContract } from '../../hooks'
-import { isAddress, calculateGasMargin, formatToUsd, formatTokenBalance, formatEthBalance } from '../../utils'
-import { ReactComponent as DropDown } from '../../assets/images/dropdown.svg'
-import Modal from '../Modal'
+import { isAddress, calculateGasMargin, formatTokenBalance, formatEthBalance } from '../../utils'
+import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
+import { ReactComponent as Done } from '../../assets/images/done.svg'
 import TokenLogo from '../TokenLogo'
 import SearchIcon from '../../assets/images/magnifying-glass.svg'
 import { useTransactionAdder, usePendingApproval } from '../../contexts/Transactions'
 import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
-import { ReactComponent as Close } from '../../assets/images/x.svg'
-import { Spinner } from '../../theme'
-import Circle from '../../assets/images/circle-grey.svg'
 import { useUSDPrice } from '../../contexts/Application'
 import { SIMPLESWAP_ADDRESSES } from '../../constants'
 
 const GAS_MARGIN = ethers.utils.bigNumberify(1000)
 
+// Menu
+const Menu = styled.div`
+  position: absolute;
+  top: 6.5rem;
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  padding: 0.5rem;
+  display: ${({ isOpen }) => (isOpen ? 'block' : 'none')};
+`
+  
+const TokenMenu = styled.div`
+  max-height: 22rem;
+  overflow-y: auto;
+  border-radius: 0.5rem;
+  background-color: ${({ theme }) => theme.white};
+`
+
+const TokenMenuInfo = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  align-items: center;
+  padding: 1rem 1.5rem;
+  margin: 0.25rem 0.5rem;
+  justify-content: center;
+  user-select: none;
+`
+
+const TokenMenuRow = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  cursor: pointer;
+  user-select: none;
+  border-top: 1px solid ${({ theme }) => theme.borderColor};
+
+  #symbol {
+    color: ${({ theme }) => theme.doveGrey};
+  }
+
+  :hover {
+    background-color: ${({ theme }) => theme.tokenRowHover};
+  }
+
+  ${({ theme }) => theme.mediaWidth.upToMedium`padding: 0.8rem 1rem;`}
+`
+
 const FlexRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
+  flex: 1 0;
 
   > *:not(:first-child) {
     margin-left: 12px;
@@ -38,44 +83,58 @@ const FlexRow = styled.div`
 
 const SubCurrencySelect = styled.button`
   ${({ theme }) => theme.flexRowNoWrap}
+  min-width: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 2.5rem;
   padding: 0 0.75rem;
-  border-radius: 0.25rem;
   outline: none;
   font-size: 1rem;
   line-height: 0;
   cursor: pointer;
   user-select: none;
-  background: ${({ theme }) => theme.zumthorBlue};
-  border: 1px solid ${({ theme }) => theme.nationBlue};
-  color: ${({ theme }) => theme.nationBlue};
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.white};
+  border-radius: 1.25rem;
+  color: ${({ theme }) => theme.white};
 `
 
 const InputRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 2rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: ${({ backgroundColor }) => backgroundColor};
 `
 
 const Input = styled.input`
-  width: 100%;
+  flex: 2 1;
+  min-width: 50%;
   height: 2.5rem;
   padding: 0 1rem;
   font-size: 1rem;
-  border: 1px solid ${({ theme }) => theme.borderColor};
+  text-align: right;
+  border: none;
   border-radius: 0.25rem;
-  color: ${({ error, theme }) => error && theme.salmonRed};
-  background-color: ${({ theme }) => theme.white};
+  color: ${({ error, theme }) => error ? theme.salmonRed : theme.white};
+  background-color: rgba(0, 0, 0, 0.1);
   -moz-appearance: textfield;
   user-select: none;
 
   &:focus {
     outline: none;
   }
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  &::-webkit-outer-spin-button, &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+}
 `
 
 const StyledBorderlessInput = styled(BorderlessInput)`
@@ -83,32 +142,24 @@ const StyledBorderlessInput = styled(BorderlessInput)`
   flex-shrink: 0;
   text-align: left;
   padding-left: 1.6rem;
-  background-color: ${({ theme }) => theme.concreteGray};
+  background-color: transparent;
 `
 
 const CurrencySelect = styled.button`
+  min-width: 114px;
   align-items: center;
   font-size: 1rem;
-  color: ${({ selected, theme }) => (selected ? theme.textColor : theme.royalBlue)};
+  color: ${({ theme }) => theme.white};
   height: 2.5rem;
-  border: 1px solid ${({ selected, theme }) => (selected ? theme.mercuryGray : theme.borderColor)};
+  border: none;
   border-radius: 0.25rem;
-  background-color: ${({ theme }) => theme.white};
+  background-color: transparent;
   outline: none;
   cursor: pointer;
   user-select: none;
 
-  :hover {
-    border: 1px solid
-      ${({ selected, theme }) => (selected ? darken(0.1, theme.mercuryGray) : darken(0.1, theme.borderColor))};
-  }
-
   :focus {
-    border: 1px solid ${({ theme }) => darken(0.1, theme.borderColor)};
-  }
-
-  :active {
-    background-color: ${({ theme }) => theme.borderColor};
+    outline: none;
   }
 `
 
@@ -118,41 +169,33 @@ const Aligner = styled.span`
   justify-content: space-between;
 `
 
-const StyledDropDown = styled(DropDown)`
+const StyledArrowDropDown = styled(ArrowDropDown)`
+  width: 1rem;
   margin: 0 0.5rem 0 0.5rem;
-  height: 35%;
 
   path {
-    stroke: ${({ selected, theme }) => (selected ? theme.textColor : theme.royalBlue)};
+    fill: ${({ theme }) => theme.white};
+    stroke: ${({ theme }) => theme.white};
   }
 `
 
 const InputPanel = styled.div`
   ${({ theme }) => theme.flexColumnNoWrap}
-  box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
   position: relative;
-  border-radius: 0.25rem;
-  background-color: ${({ theme }) => theme.white};
-  z-index: 1;
 `
 
 const Container = styled.div`
-  padding: 0.5rem 0
+  padding: 0.5rem;
   border-radius: 0.25rem;
-  border: 1px solid ${({ error, theme }) => (error ? theme.salmonRed : theme.borderColor)};
-
-  background-color: ${({ theme }) => theme.white};
-  :focus-within {
-    border: 1px solid ${({ theme }) => theme.malibuBlue};
-  }
 `
 
 const LabelRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
   color: ${({ theme }) => theme.textBlack};
-  font-size: 1.25rem;
-  padding: 0.5rem 2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.5rem 0;
   span:hover {
     color: ${({ theme }) => darken(0.2, theme.doveGray)};
   }
@@ -174,50 +217,18 @@ const ErrorSpan = styled.span`
   }
 `
 
-const TokenModal = styled.div`
-  ${({ theme }) => theme.flexColumnNoWrap}
-  width: 100%;
-`
-
-const ModalHeader = styled.div`
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding: 0px 0px 0px 1rem;
-  height: 60px;
-`
-
-const CloseColor = styled(Close)`
-  path {
-    stroke: ${({ theme }) => theme.textColor};
-  }
-`
-
-const CloseIcon = styled.div`
-  position: absolute;
-  right: 1rem;
-  top: 14px;
-  &:hover {
-    cursor: pointer;
-    opacity: 0.6;
-  }
+const SearchRow = styled.div`
+  padding: 1rem;
 `
 
 const SearchContainer = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   justify-content: flex-start;
-  padding: 0.5rem 1.5rem;
-  background-color: ${({ theme }) => theme.concreteGray};
-`
-
-const TokenModalInfo = styled.div`
-  ${({ theme }) => theme.flexRowNoWrap}
-  align-items: center;
-  padding: 1rem 1.5rem;
-  margin: 0.25rem 0.5rem;
-  justify-content: center;
-  user-select: none;
+  flex: 1;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  background-color: ${({ theme }) => theme.solitude};
 `
 
 const TokenList = styled.div`
@@ -225,25 +236,6 @@ const TokenList = styled.div`
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-`
-
-const TokenModalRow = styled.div`
-  ${({ theme }) => theme.flexRowNoWrap}
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  cursor: pointer;
-  user-select: none;
-
-  #symbol {
-    color: ${({ theme }) => theme.doveGrey};
-  }
-
-  :hover {
-    background-color: ${({ theme }) => theme.tokenRowHover};
-  }
-
-  ${({ theme }) => theme.mediaWidth.upToMedium`padding: 0.8rem 1rem;`}
 `
 
 const TokenRowLeft = styled.div`
@@ -254,20 +246,26 @@ const TokenRowLeft = styled.div`
 const TokenSymbolGroup = styled.div`
   ${({ theme }) => theme.flexColumnNoWrap};
   margin-left: 1rem;
+
+  > *:not(:first-child) {
+    margin-top: 0.5rem;
+  }
 `
 
-const TokenFullName = styled.div`
-  color: ${({ theme }) => theme.chaliceGray};
+const TokenTitle = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap};
 `
 
-const TokenRowBalance = styled.div`
+const TokenBalance = styled.div`
   font-size: 1rem;
+  font-weigth: 400;
+  color: ${({ theme }) => theme.chaliceGray};
   line-height: 20px;
 `
 
-const TokenRowUsd = styled.div`
-  font-size: 1rem;
-  line-height: 1.5rem;
+const TokenFullName = styled.div`
+  margin-left: 0.25rem;
+  font-weight: 600;
   color: ${({ theme }) => theme.chaliceGray};
 `
 
@@ -276,14 +274,14 @@ const TokenRowRight = styled.div`
   align-items: flex-end;
 `
 
-const StyledTokenName = styled.span`
-  margin: 0 0.25rem 0 0.25rem;
+const StyledDone = styled(Done)`
+  width: 36px;
+  height: 36px;
+  fill: ${({ theme }) => theme.franceBlue};
 `
 
-const SpinnerWrapper = styled(Spinner)`
+const StyledTokenName = styled.span`
   margin: 0 0.25rem 0 0.25rem;
-  color: ${({ theme }) => theme.chaliceGray};
-  opacity: 0.6;
 `
 
 export default function CurrencyInputPanel({
@@ -301,11 +299,12 @@ export default function CurrencyInputPanel({
   selectedTokenAddress = '',
   showUnlock,
   value,
-  renderExchangeRate
+  renderExchangeRate,
+  inputBackgroundColor = '#3B83F7'
 }) {
   const { t } = useTranslation()
 
-  const [modalIsOpen, setModalIsOpen] = useState(false)
+  const [menuIsOpen, setMenuIsOpen] = useState(false)
 
   const { networkId } = useWeb3Context()
 
@@ -336,7 +335,8 @@ export default function CurrencyInputPanel({
                   gasLimit: calculateGasMargin(estimatedGas, GAS_MARGIN)
                 })
                 .then(response => {
-                  addTransaction(response, { approval: selectedTokenAddress })
+                  const comment = `Unlock ${allTokens[selectedTokenAddress].symbol}`
+                  addTransaction(response, { approval: selectedTokenAddress, comment })
                 })
             }}
           >
@@ -363,55 +363,33 @@ export default function CurrencyInputPanel({
 
     return (
       <>
-        <InputRow>
+        <InputRow backgroundColor={inputBackgroundColor}>
           <FlexRow>
             <CurrencySelect
               selected={!!selectedTokenAddress}
               onClick={() => {
                 if (!disableTokenSelect) {
-                  setModalIsOpen(true)
+                  setMenuIsOpen(!menuIsOpen)
                 }
               }}
             >
               <Aligner>
+                {selectedTokenAddress ? <TokenLogo address={selectedTokenAddress} /> : null}
                 {
                   <StyledTokenName>
                     {(allTokens[selectedTokenAddress] && allTokens[selectedTokenAddress].symbol) || t('selectToken')}
                   </StyledTokenName>
                 }
-                {!disableTokenSelect && <StyledDropDown selected={!!selectedTokenAddress} />}
+                {!disableTokenSelect && <StyledArrowDropDown selected={!!selectedTokenAddress} />}
               </Aligner>
             </CurrencySelect>
             {renderUnlockButton()}
           </FlexRow>
-          <ErrorSpan
-            data-tip={'Enter max'}
-            error={!!errorMessage}
-            onClick={() => {
-              extraTextClickHander()
-            }}
-          >
-            <Tooltip
-              label="Enter Max"
-              style={{
-                background: 'hsla(0, 0%, 0%, 0.75)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '24px',
-                padding: '0.5em 1em',
-                marginTop: '-64px'
-              }}
-            >
-              <span>{extraText}</span>
-            </Tooltip>
-          </ErrorSpan>
-        </InputRow>
-        <InputRow>
           <Input
             type="number"
             min="0"
             error={!!errorMessage}
-            placeholder="0.0"
+            placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
             step="0.000000000000000001"
             onChange={e => onValueChange(e.target.value)}
             onKeyPress={e => {
@@ -437,34 +415,53 @@ export default function CurrencyInputPanel({
           <LabelContainer>
             <span>{title}</span> <span>{description}</span>
           </LabelContainer>
-          {_renderExchangeRate()}
+          <ErrorSpan
+            data-tip={'Enter max'}
+            error={!!errorMessage}
+            onClick={() => {
+              extraTextClickHander()
+            }}
+          >
+            <Tooltip
+              label="Enter Max"
+              style={{
+                background: 'hsla(0, 0%, 0%, 0.75)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '24px',
+                padding: '0.5em 1em',
+                marginTop: '-64px'
+              }}
+            >
+              <span>{extraText}</span>
+            </Tooltip>
+          </ErrorSpan>
         </LabelRow>
         {_renderInput()}
+        {_renderExchangeRate()}
       </Container>
       {!disableTokenSelect && (
-        <CurrencySelectModal
-          isOpen={modalIsOpen}
-          // isOpen={true}
+        <CurrencySelectMenu
+          isOpen={menuIsOpen}
           onDismiss={() => {
-            setModalIsOpen(false)
+            setMenuIsOpen(false)
           }}
           onTokenSelect={onCurrencySelected}
           allBalances={allBalances}
+          selectedTokenAddress={selectedTokenAddress}
         />
       )}
     </InputPanel>
   )
 }
 
-function CurrencySelectModal({ isOpen, onDismiss, onTokenSelect, allBalances }) {
+function CurrencySelectMenu({ isOpen, onDismiss, onTokenSelect, allBalances, selectedTokenAddress }) {
   const { t } = useTranslation()
 
   const [searchQuery, setSearchQuery] = useState('')
   useTokenDetails(searchQuery)
 
   const allTokens = useAllTokenDetails()
-
-  const { account } = useWeb3Context()
 
   // BigNumber.js instance
   const ethPrice = useUSDPrice()
@@ -562,35 +559,30 @@ function CurrencySelectModal({ isOpen, onDismiss, onTokenSelect, allBalances }) 
 
   function renderTokenList() {
     if (!filteredTokenList.length) {
-      return <TokenModalInfo>{t('noToken')}</TokenModalInfo>
+      return <TokenMenuInfo>{t('noToken')}</TokenMenuInfo>
     }
 
-    return filteredTokenList.map(({ address, symbol, name, balance, usdBalance }) => {
+    return filteredTokenList.map(({ address, symbol, name, balance }) => {
       return (
-        <TokenModalRow key={address} onClick={() => _onTokenSelect(address)}>
+        <TokenMenuRow key={address} onClick={() => _onTokenSelect(address)}>
           <TokenRowLeft>
             <TokenLogo address={address} size={'2rem'} />
             <TokenSymbolGroup>
-              <span id="symbol">{symbol}</span>
-              <TokenFullName>{name}</TokenFullName>
+              <TokenTitle>
+                <span id="symbol">{symbol}</span>
+                <TokenFullName>({name})</TokenFullName>
+              </TokenTitle>
+              {balance && <TokenBalance>Balance: {balance && (balance > 0 || balance === '<0.0001') ? balance : '-'}</TokenBalance>}
             </TokenSymbolGroup>
           </TokenRowLeft>
           <TokenRowRight>
-            {balance ? (
-              <TokenRowBalance>{balance && (balance > 0 || balance === '<0.0001') ? balance : '-'}</TokenRowBalance>
-            ) : account ? (
-              <SpinnerWrapper src={Circle} alt="loader" />
-            ) : (
-              '-'
-            )}
-            <TokenRowUsd>
-              {usdBalance ? (usdBalance.lt(0.01) ? '<$0.01' : '$' + formatToUsd(usdBalance)) : ''}
-            </TokenRowUsd>
+            {address === selectedTokenAddress && <StyledDone />}
           </TokenRowRight>
-        </TokenModalRow>
+        </TokenMenuRow>
       )
     })
   }
+
 
   // manage focus on modal show
   const inputRef = useRef()
@@ -601,36 +593,24 @@ function CurrencySelectModal({ isOpen, onDismiss, onTokenSelect, allBalances }) 
     setSearchQuery(checksummedInput || input)
   }
 
-  function clearInputAndDismiss() {
-    setSearchQuery('')
-    onDismiss()
-  }
-
   return (
-    <Modal
+    <Menu
       isOpen={isOpen}
-      onDismiss={clearInputAndDismiss}
-      minHeight={60}
-      initialFocusRef={isMobile ? undefined : inputRef}
     >
-      <TokenModal>
-        <ModalHeader>
-          <p>Select Token</p>
-          <CloseIcon onClick={clearInputAndDismiss}>
-            <CloseColor alt={'close icon'} />
-          </CloseIcon>
-        </ModalHeader>
-        <SearchContainer>
-          <img src={SearchIcon} alt="search" />
-          <StyledBorderlessInput
-            ref={inputRef}
-            type="text"
-            placeholder={isMobile ? t('searchOrPasteMobile') : t('searchOrPaste')}
-            onChange={onInput}
-          />
-        </SearchContainer>
+      <TokenMenu>
+        <SearchRow>
+          <SearchContainer>
+            <img src={SearchIcon} alt="search" />
+            <StyledBorderlessInput
+              ref={inputRef}
+              type="text"
+              placeholder={isMobile ? t('searchOrPasteMobile') : t('searchOrPaste')}
+              onChange={onInput}
+            />
+          </SearchContainer>
+        </SearchRow>
         <TokenList>{renderTokenList()}</TokenList>
-      </TokenModal>
-    </Modal>
+      </TokenMenu>
+    </Menu>
   )
 }

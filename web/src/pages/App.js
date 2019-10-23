@@ -31,7 +31,7 @@ const BodyWrapper = styled.div`
   align-items: center;
   flex: 1;
   overflow: auto;
-  background-color: #FAFCFD;
+  background-color: #EAEEF4;
 `
 
 const Body = styled.div`

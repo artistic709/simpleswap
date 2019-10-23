@@ -73,5 +73,6 @@
   "decimals": "小数位数",
   "enterTokenCont": "输入通证地址并继续",
   "Back to swap your tokens": "返回到兑换通证",
-  "noToken": "查無此通证"
+  "noToken": "查無此通证",
+  "you": "你"
 }

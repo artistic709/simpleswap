@@ -6,6 +6,7 @@
   "private": true,
   "dependencies": {
     "@reach/dialog": "^0.2.8",
+    "@reach/menu-button": "^0.3.0",
     "@reach/tooltip": "^0.2.0",
     "@uniswap/sdk": "^1.0.0-beta.4",
     "copy-to-clipboard": "^3.2.0",
@@ -22,7 +23,7 @@
     "react-feather": "^1.1.6",
     "react-ga": "^2.5.7",
     "react-i18next": "^10.7.0",
-    "react-router-dom": "^5.0.0",
+    "react-router-dom": "^5.1.2",
     "react-scripts": "^3.0.1",
     "react-spring": "^8.0.20",
     "react-switch": "^5.0.1",
@@ -60,6 +61,7 @@
       "last 1 safari version"
     ]
   },
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "gh-pages": "^2.1.1",
     "prettier": "^1.17.0"

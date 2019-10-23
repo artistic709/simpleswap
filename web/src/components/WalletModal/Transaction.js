@@ -3,7 +3,7 @@ import styled, { keyframes } from 'styled-components'
 import { useWeb3Context } from 'web3-react'
 import Copy from './Copy'
 
-import { getEtherscanLink } from '../../utils'
+import { getEtherscanLink, shortenTransactionHash } from '../../utils'
 import { Link, Spinner } from '../../theme'
 import Circle from '../../assets/images/circle.svg'
 import { Check } from 'react-feather'
@@ -17,6 +17,7 @@ const TransactionStatusWrapper = styled.div`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.75rem;
 `
 
 const TransactionWrapper = styled.div`
@@ -24,6 +25,12 @@ const TransactionWrapper = styled.div`
   justify-content: space-between;
   width: 100%;
   margin-top: 0.75rem;
+  padding-top: 0.75rem;
+
+  &:not(:first-child) {
+    border-top: 1px solid ${({ theme }) => theme.borderColor};
+  }
+
   a {
     /* flex: 1 1 auto; */
     overflow: hidden;
@@ -74,15 +81,32 @@ const ButtonWrapper = styled.div`
   }
 `
 
-export default function Transaction({ hash, pending }) {
+const TransactionInfoWrapper = styled.div`
+  > *:not(:first-child) {
+    margin-top: 0.25rem;
+  }
+`
+
+const TransactionComment = styled.div`
+  font-size: 0.75rem;
+
+  @media screen and (min-width: 600px) {
+    font-size: 1rem;
+  }
+`
+
+export default function Transaction({ hash, pending, comment }) {
   const { networkId } = useWeb3Context()
 
   return (
     <TransactionWrapper key={hash}>
-      <TransactionStatusWrapper>
-        <Link href={getEtherscanLink(networkId, hash, 'transaction')}>{hash} ↗ </Link>
-        <Copy toCopy={hash} />
-      </TransactionStatusWrapper>
+      <TransactionInfoWrapper>
+        <TransactionStatusWrapper>
+          <Link href={getEtherscanLink(networkId, hash, 'transaction')}>{shortenTransactionHash(hash, 6)} ↗ </Link>
+          <Copy toCopy={hash} />
+        </TransactionStatusWrapper>
+        {comment && <TransactionComment>{comment}</TransactionComment>}
+      </TransactionInfoWrapper>
       {pending ? (
         <ButtonWrapper pending={pending}>
           <Link href={getEtherscanLink(networkId, hash, 'transaction')}>

@@ -1,10 +1,14 @@
 import React from 'react'
+import { Link as RouteLink, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 import { darken } from 'polished'
 
 import { Link } from '../../theme'
 import Web3Status from '../Web3Status'
 import { ReactComponent as Logo } from '../../assets/logo.svg'
+import { ReactComponent as Pool } from '../../assets/images/pool.svg'
+import { ReactComponent as Swap } from '../../assets/images/swap.svg'
 
 const HeaderFrame = styled.div`
   display: flex;
@@ -15,11 +19,15 @@ const HeaderFrame = styled.div`
 `
 
 const HeaderElement = styled.div`
-  margin: 1.25rem;
+  margin: 0.75rem;
   display: flex;
   min-width: 0;
   display: flex;
   align-items: center;
+
+  @media screen and (min-width: 600px) {
+    margin: 1.25rem;
+  }
 `
 
 const Title = styled.div`
@@ -51,18 +59,94 @@ const Title = styled.div`
   }
 `
 
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+
+  > *:not(:last-child) {
+    margin-right: 0.75rem;
+    
+    @media screen and (min-width: 600px) {
+      margin-right: 1.5rem;
+    }
+  }
+`
+
+const HeaderLink = styled(RouteLink)`
+  display: flex;
+  align-itmes: center;
+
+  > *:not(:first-child) {
+    margin-left: 0.25rem;
+  }
+`
+
+const StyledPool = styled(Pool)`
+  width: 1rem;
+  height: 1rem;
+
+  @media screen and (min-width: 600px) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+`
+
+const StyledSwap = styled(Swap)`
+  width: 1rem;
+  height: 1rem;
+
+  @media screen and (min-width: 600px) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+`
+
+const Text = styled.div`
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: ${({ theme }) => theme.white};
+
+  @media screen and (min-width: 600px) {
+    font-size: 1.25rem
+  }
+`
+
 export default function Header() {
+  const { t } = useTranslation()
+  const { pathname } = useLocation()
+
+  const renderHeaderLinks = () => {
+    if (pathname === '/swap') {
+      return (
+        <HeaderLink to="/add-liquidity">
+          <StyledPool />
+          <Text>{t('pool')}</Text>
+        </HeaderLink>
+      )
+    } else {
+      return (
+        <HeaderLink to='/swap'>
+          <StyledSwap />
+          <Text>{t('swap')}</Text>
+        </HeaderLink>
+      )
+    }
+  }
+
   return (
     <HeaderFrame>
       <HeaderElement>
         <Title>
           <Link id="link" href="/">
             <Logo />
-            <h1 id="title">SimpleSwap</h1>
+            <h1 id="title">StableSwap</h1>
           </Link>
         </Title>
       </HeaderElement>
-      <Web3Status />
+      <HeaderActions>
+        {renderHeaderLinks()}
+        <Web3Status />
+      </HeaderActions>
     </HeaderFrame>
   )
 }

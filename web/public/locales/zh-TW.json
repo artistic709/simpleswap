@@ -73,5 +73,6 @@
   "decimals": "小數位數",
   "enterTokenCont": "輸入代幣地址",
   "Back to swap your tokens": "返回到兌換代幣",
-  "noToken": "查無此代幣"
+  "noToken": "查無此代幣",
+  "you": "你"
 }

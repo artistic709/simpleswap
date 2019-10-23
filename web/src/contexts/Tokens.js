@@ -339,7 +339,7 @@ const INITIAL_TOKENS_CONTEXT = {
   4: {
     '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371': {
       [NAME]: 'UUDD',
-      [SYMBOL]: 'USDX',
+      [SYMBOL]: 'USDx',
       [DECIMALS]: 18
     },
     '0x6c936dadc3b31f66227922f759dcc298f7725c06': {

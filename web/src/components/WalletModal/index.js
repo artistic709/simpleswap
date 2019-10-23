@@ -52,11 +52,29 @@ const YourAccount = styled.div`
   }
 `
 
-const TokenBalance = styled.div`
-  margin-top: 1rem;
-  font-size: 1rem;
-  font-weight: 400;
-  color: ${({ theme }) => theme.osloGray}
+const TokenBalances = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  align-items: center;
+  padding: 1rem 0;
+
+  > *:not(:first-child) {
+    border-left: 1px solid ${({ theme }) => theme.zirconGray}
+  }
+`
+
+const BalanceWrapper = styled.div`
+  padding: 0 1rem;
+`
+
+const BalanceCurrency = styled.div`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.mistGray};
+`
+
+const BalanceValue = styled.div`
+  margin-top: 0.5rem;
+  font-size: 0.75rem
+  color: ${({ theme }) => theme.textBlack};
 `
 
 const LowerSection = styled.div`
@@ -135,11 +153,18 @@ export default function WalletModal({ isOpen, error, onDismiss, pendingTransacti
 
   function renderTransactions(transactions, pending) {
     return (
-      <TransactionListWrapper>
-        {transactions.map((hash, i) => {
-          return <Transaction key={i} hash={hash} pending={pending} />
+      <>
+        {transactions.map((transaction, i) => {
+          return (
+            <Transaction
+              key={i}
+              hash={transaction.response.hash}
+              pending={pending}
+              comment={transaction.response['CUSTOM_DATA'].comment}
+            />
+          )
         })}
-      </TransactionListWrapper>
+      </>
     )
   }
 
@@ -181,14 +206,24 @@ export default function WalletModal({ isOpen, error, onDismiss, pendingTransacti
                 <Copy toCopy={account} />
               </AccountControl>
             </YourAccount>
-            <TokenBalance>USDx Balance: {amountFormatter(USDXBalance, 18, 2)}</TokenBalance>
-            <TokenBalance>ETH Balance: {amountFormatter(ETHBalance, 18, 2)}</TokenBalance>
+            <TokenBalances>
+              <BalanceWrapper>
+                <BalanceCurrency>ETH</BalanceCurrency>
+                <BalanceValue>{amountFormatter(ETHBalance, 18, 2)}</BalanceValue>
+              </BalanceWrapper>
+              <BalanceWrapper>
+                <BalanceCurrency>USDx</BalanceCurrency>
+                <BalanceValue>{amountFormatter(USDXBalance, 18, 2)}</BalanceValue>
+              </BalanceWrapper>
+            </TokenBalances>
           </UpperSection>
           {!!pendingTransactions.length || !!confirmedTransactions.length ? (
             <LowerSection>
               <h5>Recent Transactions</h5>
-              {renderTransactions(pendingTransactions, true)}
-              {renderTransactions(confirmedTransactions, false)}
+              <TransactionListWrapper>
+                {renderTransactions(pendingTransactions, true)}
+                {renderTransactions(confirmedTransactions, false)}
+              </TransactionListWrapper>
             </LowerSection>
           ) : (
             <LowerSection>

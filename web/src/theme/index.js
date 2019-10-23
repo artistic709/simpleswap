@@ -38,7 +38,7 @@ const theme = darkMode => ({
   textColor: darkMode ? white : '#010101',
 
   // for setting css on <html>
-  backgroundColor: darkMode ? '#333639' : white,
+  backgroundColor: darkMode ? '#333639' : '#EAEEF4',
 
   modalBackground: darkMode ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.3)',
   inputBackground: darkMode ? '#202124' : white,
@@ -58,6 +58,7 @@ const theme = darkMode => ({
   zirconGray: '#E0E0E0',
   mistGray: '#959595',
   osloGray: '#8B8F95',
+  solitude: '#EAEEF4',
 
   //blacks
   charcoalBlack: darkMode ? '#F2F2F2' : '#404040',
@@ -70,21 +71,29 @@ const theme = darkMode => ({
   loadingBlue: darkMode ? '#e4f0ff' : '#e4f0ff',
   midnightBlue: '#1F2734',
   nationBlue: '#5190F5',
+  chetwodeBlue: '#5969B3',
+  franceBlue: '#3B83F7',
 
   // purples
   wisteriaPurple: '#DC6BE5',
   // reds
   salmonRed: '#FF6871',
+  cgRed: '#E33427',
   // orange
   pizazzOrange: '#FF8F05',
+  seaBuckthorn: '#EF9B4B',
+
   // yellows
   warningYellow: '#FFE270',
+  sandYellow: '#ECC564',
   // pink
   uniswapPink: '#DC6BE5',
   connectedGreen: '#27AE60',
 
   // green
   meadowGreen: '#21B393',
+  etonGreen: '#93D198',
+  emerald: '#5CC77B',
 
   //specific
   textHover: darkMode ? theme.uniswapPink : theme.doveGray,

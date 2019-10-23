@@ -85,5 +85,6 @@
   "priceChange": "Expected price slippage",
   "forAtLeast": "for at least ",
   "Back to swap your tokens": "Back to swap your tokens",
-  "noToken": "Can not find tokens"
+  "noToken": "Can not find tokens",
+  "you": "You"
 }

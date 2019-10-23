@@ -11,6 +11,7 @@ import CurrencyInputPanel from '../../components/CurrencyInputPanel'
 import OversizedPanel from '../../components/OversizedPanel'
 import ContextualInfo from '../../components/ContextualInfo'
 import { ReactComponent as Plus } from '../../assets/images/plus-blue.svg'
+import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
 import { useSimpleSwapContract } from '../../hooks'
 import { amountFormatter, calculateGasMargin } from '../../utils'
@@ -36,6 +37,8 @@ const GAS_MARGIN = ethers.utils.bigNumberify(1000)
 
 const Row = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
+  padding: 0.5rem;
+  
   > *:not(:first-child) {
     margin-left: 24px;
   }
@@ -43,33 +46,58 @@ const Row = styled.div`
 
 const DataPanel = styled.div`
   width: 100%;
+  padding: 1.25rem 0;
   flex: 1;
-  padding: 1.5rem;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 1rem;
   background-color: ${({ theme }) => theme.white};
-  border: 1px solid ${({ theme }) => theme.borderColor};
+  border: none;
   box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
 
   > *:not(:first-child) {
-    margin-top: 1.5rem;
+    border-left: 1px solid ${({ theme }) => theme.borderColor};
   }
+`
+  
+const DataPanelItem = styled.div`
+  flex: 1;
+  padding: 0 1.25rem;
+  font-size: 1rem;
 
   > .title {
     color: rgba(0, 0, 0, 0.6);
     font-weight: 300;
   }
 
-  > .value {
+  > .data-row {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: space-between;
     color: ${({ theme }) => theme.textBlack};
     font-weight: 500;
+  }
+
+  .strong-title {
+    font-weight: 500;
+    color: ${({ theme }) => theme.black};
   }
 `
 
 const BlueSpan = styled.span`
-  color: ${({ theme }) => theme.royalBlue};
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.franceBlue};
+`
+
+const OrangeSpan = styled.span`
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.seaBuckthorn}
+`
+
+const StrongSpan = styled.span`
+  font-size: 1rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.black};
 `
 
 const NewExchangeWarning = styled.div`
@@ -92,10 +120,6 @@ const NewExchangeWarningText = styled.div`
   }
 `
 
-const LastSummaryText = styled.div`
-  margin-top: 1rem;
-`
-
 const DownArrowBackground = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   justify-content: center;
@@ -108,6 +132,7 @@ const SummaryPanel = styled.div`
 
 const ExchangeRateWrapper = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
+  margin-top: 0.5rem;
   align-items: center;
   color: ${({ theme }) => theme.doveGray};
   font-size: 0.75rem;
@@ -123,12 +148,55 @@ const Flex = styled.div`
   }
 `
 
+const TransactionInfo = styled.div`
+  ${({ theme }) => theme.flexColumnNoWrap}
+  align-items: center;
+`
+
+const TransactionInfoTop = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 1.5rem;
+`
+
+const TransactionInfoBottom = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap};
+  padding-top: 1.5rem;
+
+  > *:not(:first-child) {
+    border-left: 1px solid ${({ theme }) => theme.borderColor};
+  }
+`
+
+const SummaryWrapper = styled.div`
+  flex: 1;
+  padding: 0 1rem;
+  ${({ theme }) => theme.flexColumnNoWrap}
+  align-items: center;
+  text-align: center;
+
+  > *:not(:first-child) {
+    margin-top: 0.5rem;
+  }
+`
+
+const SummaryText = styled.div`
+  margin-top: 0.5rem;
+`
+
+const Divider = styled.div`
+  width: 100%;
+  height: 1px;
+  background-color: ${({ theme }) => theme.borderColor};
+`
+
 const WrappedPlus = ({ isError, highSlippageWarning, ...rest }) => <Plus {...rest} />
 const ColoredWrappedPlus = styled(WrappedPlus)`
-  width: 0.625rem;
-  height: 0.625rem;
+  width: 1rem;
+  height: 1rem;
   position: relative;
-  padding: 0.875rem;
+  padding: 0.5rem;
   box-sizing: content-box;
   path {
     stroke: ${({ active, theme }) => (active ? theme.royalBlue : theme.chaliceGray)};
@@ -306,55 +374,81 @@ export default function AddLiquidity() {
   }, [exchangeUSDXBalance, exchangeTokenBalance, decimals])
 
   function renderTransactionDetails() {
-    ReactGA.event({
-      category: 'TransactionDetail',
-      action: 'Open'
-    })
-
-    const b = text => <BlueSpan>{text}</BlueSpan>
+    const blue = text => <BlueSpan>{text}</BlueSpan>
+    const orange = text => <OrangeSpan>{text}</OrangeSpan>
+    const strong = text => <StrongSpan>{text}</StrongSpan>
 
     if (isNewExchange) {
       return (
-        <div>
-          <div>
-            {t('youAreAdding')} {b(`${inputValue} USDX`)} {t('and')} {b(`${outputValue} ${symbol}`)} {t('intoPool')}
-          </div>
-          <LastSummaryText>
-            {t('youAreSettingExRate')}{' '}
-            {b(
-              `1 USDX = ${amountFormatter(
-                getMarketRate(inputValueParsed, outputValueParsed, decimals),
-                18,
-                4,
-                false
-              )} ${symbol}`
-            )}
-            .
-          </LastSummaryText>
-          <LastSummaryText>
-            {t('youWillMint')} {b(`${inputValue}`)} {t('liquidityTokens')}
-          </LastSummaryText>
-          <LastSummaryText>{t('totalSupplyIs0')}</LastSummaryText>
-        </div>
+        <TransactionInfo>
+          <TransactionInfoTop>
+            <SummaryWrapper>
+              <SummaryText>
+                {t('youAreAdding')} {blue(`${inputValue} USDX`)} {t('and')} {blue(`${outputValue} ${symbol}`)}
+              </SummaryText>
+            </SummaryWrapper>
+            <Trade />
+            <SummaryWrapper>
+              <SummaryText>
+                {t('youWillMint')} {orange(`${inputValue}`)} {t('liquidityTokens')}
+              </SummaryText>
+            </SummaryWrapper>
+          </TransactionInfoTop>
+          <Divider />
+          <TransactionInfoBottom>
+            <SummaryWrapper>
+              <SummaryText>
+                {t('totalSupplyIs0')}
+              </SummaryText>
+            </SummaryWrapper>
+            <SummaryWrapper>
+              <SummaryText>
+                {t('youAreSettingExRate')}{' '}
+                {strong(
+                  `1 USDX = ${amountFormatter(
+                    getMarketRate(inputValueParsed, outputValueParsed, decimals),
+                    18,
+                    4,
+                    false
+                  )} ${symbol}`
+                )}
+              </SummaryText>
+            </SummaryWrapper>
+          </TransactionInfoBottom>
+        </TransactionInfo>
       )
     } else {
       return (
-        <>
-          <div>
-            {t('youAreAdding')} {b(`${amountFormatter(inputValueParsed, 18, 4)} USDX`)} {t('and')} {'at most'}{' '}
-            {b(`${amountFormatter(outputValueMax, decimals, Math.min(decimals, 4))} ${symbol}`)} {t('intoPool')}
-          </div>
-          <LastSummaryText>
-            {t('youWillMint')} {b(amountFormatter(liquidityMinted, 18, 4))} {t('liquidityTokens')}
-          </LastSummaryText>
-          <LastSummaryText>
-            {t('totalSupplyIs')} {b(amountFormatter(totalPoolTokens, 18, 4))}
-          </LastSummaryText>
-          <LastSummaryText>
-            {t('tokenWorth')} {b(amountFormatter(USDXPerLiquidityToken, 18, 4))} USDX {t('and')}{' '}
-            {b(amountFormatter(tokenPerLiquidityToken, decimals, Math.min(decimals, 4)))} {symbol}
-          </LastSummaryText>
-        </>
+        <TransactionInfo>
+          <TransactionInfoTop>
+            <SummaryWrapper>
+              <SummaryText>
+                {t('youAreAdding')} {blue(`${amountFormatter(inputValueParsed, 18, 4)} USDX`)} {t('and')} {'at most'}{' '}
+                {blue(`${amountFormatter(outputValueMax, decimals, Math.min(decimals, 4))} ${symbol}`)}
+              </SummaryText>
+            </SummaryWrapper>
+            <Trade />
+            <SummaryWrapper>
+              <SummaryText>
+                {t('youWillMint')} {orange(amountFormatter(liquidityMinted, 18, 4))} {t('liquidityTokens')}
+              </SummaryText>
+            </SummaryWrapper>
+          </TransactionInfoTop>
+          <Divider />
+          <TransactionInfoBottom>
+            <SummaryWrapper>
+              <SummaryText>
+                {t('totalSupplyIs')} {strong(amountFormatter(totalPoolTokens, 18, 4))}
+              </SummaryText>
+            </SummaryWrapper>
+            <SummaryWrapper>
+              <SummaryText>
+                {t('tokenWorth')} {strong(amountFormatter(USDXPerLiquidityToken, 18, 4))} USDX {t('and')}{' '}
+                {strong(amountFormatter(tokenPerLiquidityToken, decimals, Math.min(decimals, 4)))} {symbol}
+              </SummaryText>
+            </SummaryWrapper>
+          </TransactionInfoBottom>
+        </TransactionInfo>
       )
     }
   }
@@ -415,7 +509,8 @@ export default function AddLiquidity() {
       { gasLimit }
     )
     .then(response => {
-      addTransaction(response)
+      const comment = `Deposit ${inputValue} USDx and ${outputValue} ${symbol} to pool`
+      addTransaction(response, { comment })
     })
   }
 
@@ -603,6 +698,7 @@ export default function AddLiquidity() {
         showUnlock={showUSDXUnlock}
         errorMessage={inputError}
         disableTokenSelect
+        inputBackgroundColor='#3B83F7'
       />
       <OversizedPanel>
         <DownArrowBackground>
@@ -624,9 +720,10 @@ export default function AddLiquidity() {
         value={outputValue}
         showUnlock={showUnlock}
         errorMessage={outputError}
+        inputBackgroundColor='#EF9B4B'
         renderExchangeRate={() => (
           <ExchangeRateWrapper>
-            <span>{marketRate ? `1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}` : ' - '}</span>
+            <span>{marketRate && `1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}`}</span>
           </ExchangeRateWrapper>
         )}
       />
@@ -635,28 +732,43 @@ export default function AddLiquidity() {
       </OversizedPanel>
       <Row>
         <DataPanel>
-          <div className="title">{t('currentPoolSize')}</div>
-          <div className="value">
-            {exchangeUSDXBalance && exchangeTokenBalance
-              ? `${amountFormatter(exchangeUSDXBalance, 18, 4)} USDX + ${amountFormatter(
-                  exchangeTokenBalance,
-                  decimals,
-                  Math.min(4, decimals)
-                )} ${symbol}`
-              : ' - '}
-          </div>
-        </DataPanel>
-        <DataPanel>
-          <div className="title">{t('yourPoolShare')} ({exchangeUSDXBalance && amountFormatter(poolTokenPercentage, 16, 2)}%)</div>
-          <div className="value">
-            {USDXShare && tokenShare
-              ? `${amountFormatter(USDXShare, 18, 4)} USDX + ${amountFormatter(
-                  tokenShare,
-                  decimals,
-                  Math.min(4, decimals)
-                )} ${symbol}`
-              : ' - '}
-          </div>
+          <DataPanelItem>
+            <div className="title">{t('currentPoolSize')}</div>
+            {exchangeUSDXBalance && exchangeTokenBalance ? (
+              <>
+                <div className="data-row">
+                  <div className="data-key">USDx</div>
+                  <div className="data-value">{amountFormatter(exchangeUSDXBalance, 18, 4)}</div>
+                </div>
+                <div className="data-row">
+                  <div className="data-key">{symbol}</div>
+                  <div className="data-value">{amountFormatter(exchangeTokenBalance, decimals, Math.min(4, decimals))}</div>
+                </div>
+              </>
+            ) : (
+              <div className="data-row">{'-'}</div>
+            )}
+          </DataPanelItem>
+          <DataPanelItem>
+            <div className="title">
+              {t('yourPoolShare')} {' '}
+              <span className="strong-title">({exchangeUSDXBalance && amountFormatter(poolTokenPercentage, 16, 2)}%)</span>
+            </div>
+            {USDXShare && tokenShare ? (
+              <>
+                <div className="data-row">
+                  <div className="data-key">USDx</div>
+                  <div className="data-value">{amountFormatter(USDXShare, 18, 4)}</div>
+                </div>
+                <div className="data-row">
+                  <div className="data-key">{symbol}</div>
+                  <div className="data-value">{amountFormatter(tokenShare, decimals, Math.min(4, decimals))}</div>
+                </div>
+              </>
+            ) : (
+              <div className="data-row">{'-'}</div>
+            )}
+          </DataPanelItem>
         </DataPanel>
       </Row>
       {renderSummary()}

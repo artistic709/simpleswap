@@ -12,7 +12,7 @@ import CurrencyInputPanel from '../CurrencyInputPanel'
 import AddressInputPanel from '../AddressInputPanel'
 import OversizedPanel from '../OversizedPanel'
 import TransactionDetails from '../TransactionDetails'
-import ArrowDown from '../../assets/svg/SVGArrowDown'
+import ArrowSwap from '../../assets/svg/SVGArrowSwap'
 import { amountFormatter, calculateGasMargin } from '../../utils'
 import { useSimpleSwapContract } from '../../hooks'
 import { useTokenDetails } from '../../contexts/Tokens'
@@ -46,35 +46,67 @@ const DownArrowBackground = styled.div`
   align-items: center;
 `
 
-const WrappedArrowDown = ({ clickable, active, ...rest }) => <ArrowDown {...rest} />
-const DownArrow = styled(WrappedArrowDown)`
-  color: ${({ theme, active }) => (active ? theme.royalBlue : theme.chaliceGray)};
-  width: 0.625rem;
-  height: 0.625rem;
+const WrappedArrowSwap = ({ clickable, active, ...rest }) => <ArrowSwap {...rest} />
+const SwapArrow = styled(WrappedArrowSwap)`
   position: relative;
   padding: 0.875rem;
   box-sizing: content-box;
   cursor: ${({ clickable }) => clickable && 'pointer'};
 `
 
-const SendingChecker = styled.div`
+const SendingChecker = styled.label`
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #737373;
+  color: ${({ theme }) => theme.black};
   font-size: 0.75rem;
+  font-weight: 500;
   text-align: center;
   margin-top: 1rem;
   padding-top: 1rem;
+  cursor: pointer;
+  user-select: none;
 
   > input[type=checkbox] {
-    width: 1rem;
-    height: 1rem;
+    width: 0;
+    height: 0;
+    opacity: 0;
+  }
+
+  > .checkmark {
+    position: relative;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-right: 0.5rem;
+    background-color: ${({ theme }) => theme.white};
+    border: 1px solid ${({ theme }) => theme.black};
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 2.7px;
+      top: 0;
+      width: 3px;
+      height: 6px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      display: none;
+    }
+  }
+
+  > input[type=checkbox]:checked ~ .checkmark {
+    background-color: ${({ theme }) => theme.black};
+
+    &::after {
+      display: block;
+    }
   }
 `
 
 const ExchangeRateWrapper = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
+  margin-top: 0.5rem;
   align-items: center;
   color: ${({ theme }) => theme.doveGray};
   font-size: 0.75rem;
@@ -516,13 +548,13 @@ export default function ExchangePage({ initialCurrency }) {
 
   const estimatedText = `(${t('estimated')})`
   function formatBalance(value) {
-    return `Balance: ${value}`
+    return value
   }
 
   async function onSwap() {
     const deadline = Math.ceil(Date.now() / 1000) + DEADLINE_FROM_NOW
 
-    let estimate, method, args, value
+    let estimate, method, args, value, comment
     if (independentField === INPUT) {
       ReactGA.event({
         category: `${swapType}`,
@@ -545,6 +577,7 @@ export default function ExchangePage({ initialCurrency }) {
           deadline
         ]
         value = ethers.constants.Zero
+        comment = `Swap ${inputValueFormatted} USDx to ${outputValueFormatted} ${outputSymbol}`
       } else if (swapType === TOKEN_TO_USDX) {
         estimate = sending ? contract.estimate.tokenToUSDXTransferInput : contract.estimate.tokenToUSDXSwapInput
         method = sending ? contract.tokenToUSDXTransferInput : contract.tokenToUSDXSwapInput
@@ -558,6 +591,7 @@ export default function ExchangePage({ initialCurrency }) {
             ]
           : [inputCurrency, independentValueParsed, dependentValueMinumum, deadline]
         value = ethers.constants.Zero
+        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} USDx`
       } else if (swapType === TOKEN_TO_TOKEN) {
         estimate = sending ? contract.estimate.tokenToTokenTransferInput : contract.estimate.tokenToTokenSwapInput
         method = sending ? contract.tokenToTokenTransferInput : contract.tokenToTokenSwapInput
@@ -578,6 +612,7 @@ export default function ExchangePage({ initialCurrency }) {
               deadline
             ]
         value = ethers.constants.Zero
+        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
       }
     } else if (independentField === OUTPUT) {
       ReactGA.event({
@@ -603,6 +638,7 @@ export default function ExchangePage({ initialCurrency }) {
             deadline
           ]
         value = ethers.constants.Zero
+        comment = `Swap ${inputValueFormatted} USDx to ${outputValueFormatted} ${outputSymbol}`
       } else if (swapType === TOKEN_TO_USDX) {
         estimate = sending ? contract.estimate.tokenToUSDXTransferOutput : contract.estimate.tokenToUSDXSwapOutput
         method = sending ? contract.tokenToUSDXTransferOutput : contract.tokenToUSDXSwapOutput
@@ -621,6 +657,7 @@ export default function ExchangePage({ initialCurrency }) {
               deadline
             ]
         value = ethers.constants.Zero
+        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} USDx`
       } else if (swapType === TOKEN_TO_TOKEN) {
         estimate = sending ? contract.estimate.tokenToTokenTransferOutput : contract.estimate.tokenToTokenSwapOutput
         method = sending ? contract.tokenToTokenTransferOutput : contract.tokenToTokenSwapOutput
@@ -641,12 +678,13 @@ export default function ExchangePage({ initialCurrency }) {
               deadline
             ]
         value = ethers.constants.Zero
+        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
       }
     }
 
     const estimatedGasLimit = await estimate(...args, { value })
     method(...args, { value, gasLimit: calculateGasMargin(estimatedGasLimit, GAS_MARGIN) }).then(response => {
-      addTransaction(response)
+      addTransaction(response, { comment })
     })
   }
 
@@ -683,10 +721,11 @@ export default function ExchangePage({ initialCurrency }) {
         selectedTokenAddress={inputCurrency}
         value={inputValueFormatted}
         errorMessage={inputError ? inputError : independentField === INPUT ? independentError : ''}
+        inputBackgroundColor='#3B83F7'
       />
       <OversizedPanel>
         <DownArrowBackground>
-          <DownArrow
+          <SwapArrow
             onClick={() => {
               dispatchSwapState({ type: 'FLIP_INDEPENDENT' })
             }}
@@ -712,6 +751,7 @@ export default function ExchangePage({ initialCurrency }) {
         value={outputValueFormatted}
         errorMessage={independentField === OUTPUT ? independentError : ''}
         disableUnlock
+        inputBackgroundColor='#EF9B4B'
         renderExchangeRate={() => (
           <ExchangeRateWrapper
             onClick={() => {
@@ -720,15 +760,11 @@ export default function ExchangePage({ initialCurrency }) {
           >
             {inverted ? (
               <span>
-                {exchangeRate
-                  ? `1 ${inputSymbol} = ${amountFormatter(exchangeRate, 18, 4, false)} ${outputSymbol}`
-                  : ' - '}
+                {exchangeRate && `1 ${inputSymbol} = ${amountFormatter(exchangeRate, 18, 4, false)} ${outputSymbol}`}
               </span>
             ) : (
               <span>
-                {exchangeRate
-                  ? `1 ${outputSymbol} = ${amountFormatter(exchangeRateInverted, 18, 4, false)} ${inputSymbol}`
-                  : ' - '}
+                {exchangeRate && `1 ${outputSymbol} = ${amountFormatter(exchangeRateInverted, 18, 4, false)} ${inputSymbol}`}
               </span>
             )}
           </ExchangeRateWrapper>
@@ -736,22 +772,12 @@ export default function ExchangePage({ initialCurrency }) {
       />
       <OversizedPanel>
         <SendingChecker>
-          <input id="sending-checker" type="checkbox" value={sending} onChange={() => { setSending(!sending) }} />
-          <label htmlFor="sending-checker">Send to another account</label>
+          <input type="checkbox" value={sending} onChange={() => { setSending(!sending) }} />
+          <div className="checkmark"></div>
+          <span>Send to another account</span>
         </SendingChecker>
       </OversizedPanel>
-      {sending ? (
-        <>
-          <OversizedPanel>
-            <DownArrowBackground>
-              <DownArrow active={isValid} alt="arrow" />
-            </DownArrowBackground>
-          </OversizedPanel>
-          <AddressInputPanel onChange={setRecipient} onError={setRecipientError} />
-        </>
-      ) : (
-        ''
-      )}
+      {sending && <AddressInputPanel onChange={setRecipient} onError={setRecipientError} />}
       <TransactionDetails
         account={account}
         setRawSlippage={setRawSlippage}

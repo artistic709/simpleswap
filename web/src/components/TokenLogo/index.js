@@ -14,17 +14,12 @@ const Image = styled.img`
   border-radius: 1rem;
 `
 
-const Emoji = styled.span`
-  width: ${({ size }) => size};
-  height: ${({ size }) => size};
-`
-
 const StyledEthereumLogo = styled(EthereumLogo)`
   width: ${({ size }) => size};
   height: ${({ size }) => size};
 `
 
-export default function TokenLogo({ address, size = '1rem', ...rest }) {
+export default function TokenLogo({ address, size = '1.5rem', ...rest }) {
   const [error, setError] = useState(false)
 
   let path = ''
@@ -34,11 +29,9 @@ export default function TokenLogo({ address, size = '1rem', ...rest }) {
     path = TOKEN_ICON_API(address.toLowerCase())
   } else {
     return (
-      <Emoji {...rest} size={size}>
-        <span role="img" aria-label="Thinking">
-          🤔
-        </span>
-      </Emoji>
+      <span role="img" aria-label="Thinking">
+        🤔
+      </span>
     )
   }
 

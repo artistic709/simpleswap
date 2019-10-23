@@ -9,24 +9,12 @@ import { useDebounce } from '../../hooks'
 
 const InputPanel = styled.div`
   ${({ theme }) => theme.flexColumnNoWrap}
-  box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
   position: relative;
-  border-radius: 0.25rem;
-  background-color: ${({ theme }) => theme.white};
   z-index: 1;
 `
-
-const ContainerRow = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 0.25rem;
-  border: 1px solid ${({ error, theme }) => (error ? theme.salmonRed : theme.borderColor)};
-  padding: 0.5rem 0;
-  background-color: ${({ theme }) => theme.white};
-`
-
+  
 const InputContainer = styled.div`
+  padding: 0.5rem;
   flex: 1;
 `
 
@@ -34,8 +22,9 @@ const LabelRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
   color: ${({ theme }) => theme.textBlack};
-  font-size: 1.25rem;
-  padding: 0.5rem 2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.5rem 0;
 `
 
 const LabelContainer = styled.div`
@@ -49,16 +38,18 @@ const LabelContainer = styled.div`
 const InputRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
-  padding: 0.5rem 2rem;
-`
-
-const Input = styled.input`
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: ${({ theme }) => theme.white};
+  box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
+  `
+  
+  const Input = styled.input`
   width: 100%;
   height: 2.5rem;
   padding: 0 1rem;
   font-size: 1rem;
-  border: 1px solid ${({ theme }) => theme.borderColor};
-  border-radius: 0.25rem;
+  border: none;
   color: ${({ error, theme }) => error && theme.salmonRed};
   background-color: ${({ theme }) => theme.white};
   -moz-appearance: textfield;
@@ -66,6 +57,10 @@ const Input = styled.input`
 
   &:focus {
     outline: none;
+  }
+
+  &::placeholder {
+    color: ${({ theme }) => theme.zirconGray};
   }
 `
 
@@ -163,28 +158,26 @@ export default function AddressInputPanel({ title, initialInput = '', onChange =
 
   return (
     <InputPanel>
-      <ContainerRow error={input !== '' && error}>
-        <InputContainer>
-          <LabelRow>
-            <LabelContainer>
-              <span>{title || t('recipientAddress')}</span>
-            </LabelContainer>
-          </LabelRow>
-          <InputRow>
-            <Input
-              type="text"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              placeholder="0x1234..."
-              error={input !== '' && error}
-              onChange={onInput}
-              value={input}
-            />
-          </InputRow>
-        </InputContainer>
-      </ContainerRow>
+      <InputContainer>
+        <LabelRow>
+          <LabelContainer>
+            <span>{title || t('recipientAddress')}</span>
+          </LabelContainer>
+        </LabelRow>
+        <InputRow>
+          <Input
+            type="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            placeholder="0x1234..."
+            error={input !== '' && error}
+            onChange={onInput}
+            value={input}
+          />
+        </InputRow>
+      </InputContainer>
     </InputPanel>
   )
 }

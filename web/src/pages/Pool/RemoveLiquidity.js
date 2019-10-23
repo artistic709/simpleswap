@@ -11,6 +11,7 @@ import CurrencyInputPanel from '../../components/CurrencyInputPanel'
 import ContextualInfo from '../../components/ContextualInfo'
 import OversizedPanel from '../../components/OversizedPanel'
 import ArrowDown from '../../assets/svg/SVGArrowDown'
+import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
 import { useSimpleSwapContract } from '../../hooks'
 import { useTransactionAdder } from '../../contexts/Transactions'
@@ -31,6 +32,8 @@ const GAS_MARGIN = ethers.utils.bigNumberify(1000)
 
 const Row = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
+  padding: 0.5rem;
+  
   > *:not(:first-child) {
     margin-left: 24px;
   }
@@ -38,33 +41,58 @@ const Row = styled.div`
 
 const DataPanel = styled.div`
   width: 100%;
+  padding: 1.25rem 0;
   flex: 1;
-  padding: 1.5rem;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 1rem;
   background-color: ${({ theme }) => theme.white};
-  border: 1px solid ${({ theme }) => theme.borderColor};
+  border: none;
   box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
 
   > *:not(:first-child) {
-    margin-top: 1.5rem;
+    border-left: 1px solid ${({ theme }) => theme.borderColor};
   }
+`
+  
+const DataPanelItem = styled.div`
+  flex: 1;
+  padding: 0 1.25rem;
+  font-size: 1rem;
 
   > .title {
     color: rgba(0, 0, 0, 0.6);
     font-weight: 300;
   }
 
-  > .value {
+  > .data-row {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: space-between;
     color: ${({ theme }) => theme.textBlack};
     font-weight: 500;
+  }
+
+  .strong-title {
+    font-weight: 500;
+    color: ${({ theme }) => theme.black};
   }
 `
 
 const BlueSpan = styled.span`
-  color: ${({ theme }) => theme.royalBlue};
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.franceBlue};
+`
+
+const OrangeSpan = styled.span`
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.seaBuckthorn}
+`
+
+const StrongSpan = styled.span`
+  font-size: 1rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.black};
 `
 
 const DownArrowBackground = styled.div`
@@ -85,8 +113,10 @@ const DownArrow = styled(ArrowDown)`
 
 const RemoveLiquidityOutput = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
+  align-items: center;
   min-height: 3.5rem;
-  padding: 0 1.25rem;
+  background-color: ${({ theme }) => theme.white};
+  box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
 `
 
 const RemoveLiquidityOutputText = styled.div`
@@ -106,12 +136,9 @@ const SummaryPanel = styled.div`
   padding: 1rem 0;
 `
 
-const LastSummaryText = styled.div`
-  margin-top: 1rem;
-`
-
 const ExchangeRateWrapper = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
+  margin-top: 0.5rem;
   align-items: center;
   color: ${({ theme }) => theme.doveGray};
   font-size: 0.75rem;
@@ -125,6 +152,49 @@ const Flex = styled.div`
   button {
     max-width: 20rem;
   }
+`
+
+const TransactionInfo = styled.div`
+  ${({ theme }) => theme.flexColumnNoWrap}
+  align-items: center;
+`
+
+const TransactionInfoTop = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 1.5rem;
+`
+
+const TransactionInfoBottom = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap};
+  padding-top: 1.5rem;
+
+  > *:not(:first-child) {
+    border-left: 1px solid ${({ theme }) => theme.borderColor};
+  }
+`
+
+const SummaryWrapper = styled.div`
+  flex: 1;
+  padding: 0 1rem;
+  ${({ theme }) => theme.flexColumnNoWrap}
+  align-items: center;
+  text-align: center;
+
+  > *:not(:first-child) {
+    margin-top: 0.5rem;
+  }
+`
+
+const SummaryText = styled.div`
+  margin-top: 0.5rem;
+`
+
+const Divider = styled.div`
+  width: 100%;
+  height: 1px;
+  background-color: ${({ theme }) => theme.borderColor};
 `
 
 function getExchangeRate(inputValue, inputDecimals, outputValue, outputDecimals, invert = false) {
@@ -293,11 +363,10 @@ export default function RemoveLiquidity() {
         gasLimit: calculateGasMargin(estimatedGasLimit, GAS_MARGIN)
       })
       .then(response => {
-        addTransaction(response)
+        const comment = `Withdraw ${amountFormatter(USDXWithdrawn, 18, 4)} USDx and ${amountFormatter(tokenWithdrawn, decimals, Math.min(decimals, 4))} ${symbol} from pool`
+        addTransaction(response, { comment })
       })
   }
-
-  const b = text => <BlueSpan>{text}</BlueSpan>
 
   function renderTransactionDetails() {
     ReactGA.event({
@@ -305,23 +374,41 @@ export default function RemoveLiquidity() {
       action: 'Open'
     })
 
+    const blue = text => <BlueSpan>{text}</BlueSpan>
+    const orange = text => <OrangeSpan>{text}</OrangeSpan>
+    const strong = text => <StrongSpan>{text}</StrongSpan>
+
     return (
-      <div>
-        <div>
-          {t('youAreRemoving')} {b(`${amountFormatter(USDXWithdrawn, 18, 4)} USDX`)} {t('and')}{' '}
-          {b(`${amountFormatter(tokenWithdrawn, decimals, Math.min(decimals, 4))} ${symbol}`)} {t('outPool')}
-        </div>
-        <LastSummaryText>
-          {t('youWillRemove')} {b(amountFormatter(valueParsed, 18, 4))} {t('liquidityTokens')}
-        </LastSummaryText>
-        <LastSummaryText>
-          {t('totalSupplyIs')} {b(amountFormatter(totalPoolTokens, 18, 4))}
-        </LastSummaryText>
-        <LastSummaryText>
-          {t('tokenWorth')} {b(amountFormatter(USDXPer, 18, 4))} USDX {t('and')}{' '}
-          {b(amountFormatter(tokenPer, decimals, Math.min(4, decimals)))} {symbol}
-        </LastSummaryText>
-      </div>
+      <TransactionInfo>
+        <TransactionInfoTop>
+          <SummaryWrapper>
+            <SummaryText>
+              {t('youAreRemoving')} {blue(`${amountFormatter(USDXWithdrawn, 18, 4)} USDX`)} {t('and')}{' '}
+              {blue(`${amountFormatter(tokenWithdrawn, decimals, Math.min(decimals, 4))} ${symbol}`)}
+            </SummaryText>
+          </SummaryWrapper>
+          <Trade />
+          <SummaryWrapper>
+            <SummaryText>
+              {t('youWillRemove')} {orange(amountFormatter(valueParsed, 18, 4))} {t('liquidityTokens')}
+            </SummaryText>
+          </SummaryWrapper>
+        </TransactionInfoTop>
+        <Divider />
+        <TransactionInfoBottom>
+          <SummaryWrapper>
+            <SummaryText>
+              {t('totalSupplyIs')} {strong(amountFormatter(totalPoolTokens, 18, 4))}
+            </SummaryText>
+          </SummaryWrapper>
+          <SummaryWrapper>
+            <SummaryText>
+              {t('tokenWorth')} {strong(amountFormatter(USDXPer, 18, 4))} USDX {t('and')}{' '}
+              {strong(amountFormatter(tokenPer, decimals, Math.min(4, decimals)))} {symbol}
+            </SummaryText>
+          </SummaryWrapper>
+        </TransactionInfoBottom>
+      </TransactionInfo>
     )
   }
 
@@ -413,7 +500,7 @@ export default function RemoveLiquidity() {
         disableUnlock
         renderExchangeRate={() => (
           <ExchangeRateWrapper>
-            {marketRate ? <span>{`1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}`}</span> : ' - '}
+            {marketRate && <span>{`1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}`}</span>}
           </ExchangeRateWrapper>
         )}
       />
@@ -421,33 +508,44 @@ export default function RemoveLiquidity() {
         <SummaryPanel></SummaryPanel>
       </OversizedPanel>
       <Row>
-        <DataPanel>
-          <div className="title">{t('currentPoolSize')}</div>
-          <div className="value">
-            {exchangeUSDXBalance && exchangeTokenBalance
-              ? `${amountFormatter(exchangeUSDXBalance, 18, 4)} USDX + ${amountFormatter(
-                  exchangeTokenBalance,
-                  decimals,
-                  Math.min(4, decimals)
-                )} ${symbol}`
-              : ' - '}
-          </div>
-        </DataPanel>
-        <DataPanel>
-          <div className="title">{t('yourPoolShare')} ({ownershipPercentageFormatted && ownershipPercentageFormatted}%)</div>
-          <div className="value">
-            {USDXOwnShare && TokenOwnShare ? (
-              <span>
-                {`${amountFormatter(USDXOwnShare, 18, 4)} USDX + ${amountFormatter(
-                  TokenOwnShare,
-                  decimals,
-                  Math.min(decimals, 4)
-                )} ${symbol}`}
-              </span>
+      <DataPanel>
+          <DataPanelItem>
+            <div className="title">{t('currentPoolSize')}</div>
+            {exchangeUSDXBalance && exchangeTokenBalance ? (
+              <>
+                <div className="data-row">
+                  <div className="data-key">USDx</div>
+                  <div className="data-value">{amountFormatter(exchangeUSDXBalance, 18, 4)}</div>
+                </div>
+                <div className="data-row">
+                  <div className="data-key">{symbol}</div>
+                  <div className="data-value">{amountFormatter(exchangeTokenBalance, decimals, Math.min(4, decimals))}</div>
+                </div>
+              </>
             ) : (
-              ' - '
+              <div className="data-row">{'-'}</div>
             )}
-          </div>
+          </DataPanelItem>
+          <DataPanelItem>
+            <div className="title">
+              {t('yourPoolShare')} {' '}
+              <span className="strong-title">({ownershipPercentageFormatted && ownershipPercentageFormatted}%)</span>
+            </div>
+            {USDXOwnShare && TokenOwnShare ? (
+              <>
+                <div className="data-row">
+                  <div className="data-key">USDx</div>
+                  <div className="data-value">{amountFormatter(USDXOwnShare, 18, 4)}</div>
+                </div>
+                <div className="data-row">
+                  <div className="data-key">{symbol}</div>
+                  <div className="data-value">{amountFormatter(TokenOwnShare, decimals, Math.min(4, decimals))}</div>
+                </div>
+              </>
+            ) : (
+              <div className="data-row">{'-'}</div>
+            )}
+          </DataPanelItem>
         </DataPanel>
       </Row>
       {renderSummary()}

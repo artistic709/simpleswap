@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { useTranslation } from 'react-i18next'
 import { useWeb3Context, Connectors } from 'web3-react'
@@ -8,6 +7,7 @@ import WalletModal from '../WalletModal'
 import { shortenAddress, getNetworkName } from '../../utils'
 import { useENSName } from '../../hooks'
 import { useAllTransactions } from '../../contexts/Transactions'
+import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
 
 const { Connector } = Connectors
 
@@ -15,10 +15,14 @@ const Web3StatusWrapper = styled.div`
   ${({ theme }) => theme.flexColumnNoWrap}
   position: relative;
   width: 11rem;
-  margin: 0 1.25rem;
+  margin: 0 0.75rem;
   padding: 1.25rem 0;
   border: none;
   background-color: transparent;
+
+  @media screen and (min-width: 600px) {
+    margin: 0 1.25rem;
+  }
 
   > *:not(:first-child) {
     margin-top: 0.5rem;
@@ -77,7 +81,13 @@ const Web3NetworkIndicator = styled.div`
   height: 0.5rem;
   margin-right: 0.5rem;
   border-radius: 0.25rem;
-  background-color: ${({ theme }) => theme.meadowGreen};
+  background-color: ${({ theme, networkId }) => {
+    if (networkId === 1) {
+      return theme.emerald
+    } else {
+      return theme.seaBuckthorn
+    }
+  }};
 `
 
 const Web3AccountStatus = styled.div`
@@ -102,6 +112,16 @@ const Text = styled.p`
   white-space: nowrap;
   margin: 0;
   font-size: 1rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.white};
+  `
+  
+const SubText = styled.p`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  font-size: 0.75rem;
   font-weight: 500;
   color: ${({ theme }) => theme.white};
 `
@@ -133,29 +153,14 @@ const Button = styled.button`
   }
 `
 
-const LinkButton = styled(Link)`
-  width: 100%;
-  height: 40px;
-  border: none;
-  outline: none;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-color: ${({ theme }) => theme.mistGrey};
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 500;
-  background-color: #ffffff;
-  cursor: pointer;
-  text-decoration: none;
+const StyledArrowDropDown = styled(ArrowDropDown)`
+  width: 1rem;
+  margin-left: 0.5rem;
 
-  &:focus {
-    outline: none;
+  path {
+    fill: ${({ theme }) => theme.white};
+    stroke: ${({ theme }) => theme.white};
   }
-
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-top: 1px solid #E0E0E0;
 `
 
 export default function Web3Status() {
@@ -168,8 +173,14 @@ export default function Web3Status() {
   const [error, setError] = useState()
 
   const allTransactions = useAllTransactions()
-  const pending = Object.keys(allTransactions).filter(hash => !allTransactions[hash].receipt)
-  const confirmed = Object.keys(allTransactions).filter(hash => allTransactions[hash].receipt)
+
+  const pending = Object.keys(allTransactions)
+    .map(hash => allTransactions[hash])
+    .filter(transaction => !transaction.receipt)
+
+  const confirmed = Object.keys(allTransactions)
+    .map(hash => allTransactions[hash])
+    .filter(transaction => transaction.receipt)
   // const hasPendingTransactions = !!pending.length
 
   // janky logic to detect log{ins,outs}...
@@ -265,7 +276,7 @@ export default function Web3Status() {
       <Web3StatusWrapper>
         <Web3NetworkStatus>
           <Web3NetworkIndicator />
-          <Text>{error ? 'Wrong Network' : getInjectedNetworkName(networkId)}</Text>
+          <SubText>{error ? 'Wrong Network' : getInjectedNetworkName(networkId)}</SubText>
         </Web3NetworkStatus>
         {
           error 
@@ -277,18 +288,14 @@ export default function Web3Status() {
             : (
               <Web3AccountStatus>
                 <Text>{getWeb3Account()}</Text>
+                <StyledArrowDropDown />
               </Web3AccountStatus>
             )
         }
         <div className="web3-button-wrapper">
           <span><em /></span>
           <Button onClick={onClick}>{account ? 'Logout' : 'Connect'}</Button>
-          { account && (
-            <>
-              <Button onClick={openWalletModal}>Wallet</Button>
-              <LinkButton to="/add-liquidity">Pool</LinkButton>
-            </>
-          )}
+          { account && <Button onClick={openWalletModal}>Wallet</Button>}
         </div>
         <WalletModal
           isOpen={isOpen}

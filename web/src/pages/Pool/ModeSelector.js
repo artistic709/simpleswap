@@ -28,7 +28,7 @@ const LiquidityContainer = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
   margin-bottom: 2rem;
   border-radius: 0.25rem;
-  border: 1px solid ${({ theme }) => theme.borderColor};
+  border: none;
   background-color: ${({ theme }) => theme.white};
   box-shadow: 0 0 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
   align-items: center;

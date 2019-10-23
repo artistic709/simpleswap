@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import ReactGA from 'react-ga'
 import { useTranslation } from 'react-i18next'
 import styled, { css, keyframes } from 'styled-components'
-import { darken, lighten } from 'polished'
-import { isAddress, amountFormatter } from '../../utils'
+import { darken, transparentize } from 'polished'
+import { isAddress, amountFormatter, shortenAddress } from '../../utils'
 import { useDebounce } from '../../hooks'
 
+import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 import question from '../../assets/images/question.svg'
 
 import NewContextualInfo from '../../components/ContextualInfoNew'
@@ -125,6 +126,7 @@ const Option = styled(FancyButton)`
   margin-right: 8px;
   margin-top: 6px;
 
+
   :hover {
     cursor: pointer;
   }
@@ -132,31 +134,34 @@ const Option = styled(FancyButton)`
   ${({ active, theme }) =>
     active &&
     css`
-      background-color: ${({ theme }) => theme.royalBlue};
-      color: ${({ theme }) => theme.white};
-      border: none;
+      background-color: ${({ theme }) => transparentize(0.8, theme.franceBlue)};
+      color: ${({ theme }) => theme.franceBlue};
+      border: 2px solid ${({ theme }) => theme.franceBlue};
 
       :hover {
-        border: none;
         box-shadow: none;
-        background-color: ${({ theme }) => darken(0.05, theme.royalBlue)};
+        border: 1px solid ${({ theme }) => theme.franceBlue};
+        color: ${({ theme }) => theme.franceBlue};
       }
 
       :focus {
-        border: none;
         box-shadow: none;
-        background-color: ${({ theme }) => lighten(0.05, theme.royalBlue)};
+        border: 1px solid ${({ theme }) => theme.franceBlue};
+        color: ${({ theme }) => theme.franceBlue};
       }
 
       :active {
-        background-color: ${({ theme }) => darken(0.05, theme.royalBlue)};
+        border: 1px solid ${({ theme }) => theme.franceBlue};
+        color: ${({ theme }) => theme.franceBlue};
       }
 
       :hover:focus {
-        background-color: ${({ theme }) => theme.royalBlue};
+        border: 1px solid ${({ theme }) => theme.franceBlue};
+        color: ${({ theme }) => theme.franceBlue};
       }
       :hover:focus:active {
-        background-color: ${({ theme }) => darken(0.05, theme.royalBlue)};
+        border: 1px solid ${({ theme }) => theme.franceBlue};
+        color: ${({ theme }) => theme.franceBlue};
       }
     `}
 `
@@ -252,8 +257,8 @@ const Bold = styled.span`
   font-weight: 500;
 `
 
-const LastSummaryText = styled.div`
-  padding-top: 0.5rem;
+const SummaryText = styled.div`
+  margin-top: 0.5rem;
 `
 
 const SlippageSelector = styled.div`
@@ -283,19 +288,48 @@ const Percent = styled.div`
       `)};
 `
 
-const Faded = styled.span`
-  opacity: 0.7;
-`
-
 const TransactionInfo = styled.div`
+  ${({ theme }) => theme.flexColumnNoWrap}
   padding: 1rem 2rem;
+  align-items: center;
 `
 
-const ValueWrapper = styled.span`
-  padding: 0.125rem 0.3rem 0.1rem 0.3rem;
-  background-color: ${({ theme }) => darken(0.04, theme.concreteGray)};
-  border-radius: 12px;
-  font-variant: tabular-nums;
+const SummaryContainer = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  align-items: center;
+  
+  > *:not(:first-child) {
+    margin-left: 1rem;
+  }
+`
+
+const SummaryWrapper = styled.div`
+  ${({ theme }) => theme.flexColumnNoWrap}
+  align-items: center;
+
+  > *:not(:first-child) {
+    margin-top: 0.5rem;
+  }
+`
+
+const SentValueWrapper = styled.span`
+  padding: 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.franceBlue};
+`
+const ReceivedValueWrapper = styled.span`
+  padding: 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.seaBuckthorn};
+`
+
+const SlippageValueWrapper = styled.span`
+  padding: 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.emerald};
 `
 
 export default function TransactionDetails(props) {
@@ -387,13 +421,11 @@ export default function TransactionDetails(props) {
             >
               <HelpCircleStyled src={question} alt="popup" />
             </QuestionWrapper>
-            {showPopup ? (
+            {showPopup && (
               <Popup>
                 Lowering this limit decreases your risk of frontrunning. However, this makes it more likely that your
                 transaction will fail due to normal price movements.
               </Popup>
-            ) : (
-              ''
             )}
           </SlippageRow>
           <SlippageRow wrap>
@@ -419,7 +451,7 @@ export default function TransactionDetails(props) {
               }}
               active={activeIndex === 3}
             >
-              1% <Faded>(suggested)</Faded>
+              1% (suggested)
             </OptionLarge>
             <OptionCustom
               active={activeIndex === 4}
@@ -571,123 +603,42 @@ export default function TransactionDetails(props) {
       action: 'Open'
     })
 
-    if (props.independentField === props.INPUT) {
-      return props.sending ? (
-        <TransactionInfo>
-          <div>
-            {t('youAreSelling')}{' '}
-            <ValueWrapper>
-              {b(
+    return (
+      <TransactionInfo>
+        <SummaryContainer>
+          <SummaryWrapper>
+            <SummaryText>{t('youAreSelling')}{' '}</SummaryText>
+            <SentValueWrapper>
+              {
                 `${amountFormatter(
                   props.independentValueParsed,
                   props.independentDecimals,
                   Math.min(4, props.independentDecimals)
                 )} ${props.inputSymbol}`
-              )}
-            </ValueWrapper>
-          </div>
-          <LastSummaryText>
-            {b(props.recipientAddress)} {t('willReceive')}{' '}
-            <ValueWrapper>
-              {b(
+              }
+            </SentValueWrapper>
+          </SummaryWrapper>
+          <Trade />
+          <SummaryWrapper>
+            <SummaryText>
+              {props.sending ? b(shortenAddress(props.recipientAddress, 3)) : t('you')} {t('willReceive')}{' '}
+            </SummaryText>
+            <ReceivedValueWrapper>
+              {
                 `${amountFormatter(
                   props.dependentValueMinumum,
                   props.dependentDecimals,
                   Math.min(4, props.dependentDecimals)
                 )} ${props.outputSymbol}`
-              )}
-            </ValueWrapper>{' '}
-          </LastSummaryText>
-          <LastSummaryText>
-            {t('priceChange')} <ValueWrapper>{b(`${props.percentSlippageFormatted}%`)}</ValueWrapper>
-          </LastSummaryText>
-        </TransactionInfo>
-      ) : (
-        <TransactionInfo>
-          <div>
-            {t('youAreSelling')}{' '}
-            <ValueWrapper>
-              {b(
-                `${amountFormatter(
-                  props.independentValueParsed,
-                  props.independentDecimals,
-                  Math.min(4, props.independentDecimals)
-                )} ${props.inputSymbol}`
-              )}
-            </ValueWrapper>{' '}
-            {t('forAtLeast')}
-            <ValueWrapper>
-              {b(
-                `${amountFormatter(
-                  props.dependentValueMinumum,
-                  props.dependentDecimals,
-                  Math.min(4, props.dependentDecimals)
-                )} ${props.outputSymbol}`
-              )}
-            </ValueWrapper>
-          </div>
-          <LastSummaryText>
-            {t('priceChange')} <ValueWrapper>{b(`${props.percentSlippageFormatted}%`)}</ValueWrapper>
-          </LastSummaryText>
-        </TransactionInfo>
-      )
-    } else {
-      return props.sending ? (
-        <TransactionInfo>
-          <div>
-            {t('youAreSending')}{' '}
-            <ValueWrapper>
-              {b(
-                `${amountFormatter(
-                  props.independentValueParsed,
-                  props.independentDecimals,
-                  Math.min(4, props.independentDecimals)
-                )} ${props.outputSymbol}`
-              )}
-            </ValueWrapper>{' '}
-            {t('to')} {b(props.recipientAddress)} {t('forAtMost')}{' '}
-            <ValueWrapper>
-              {b(
-                `${amountFormatter(
-                  props.dependentValueMaximum,
-                  props.dependentDecimals,
-                  Math.min(4, props.dependentDecimals)
-                )} ${props.inputSymbol}`
-              )}
-            </ValueWrapper>{' '}
-          </div>
-          <LastSummaryText>
-            {t('priceChange')} <ValueWrapper>{b(`${props.percentSlippageFormatted}%`)}</ValueWrapper>
-          </LastSummaryText>
-        </TransactionInfo>
-      ) : (
-        <TransactionInfo>
-          {t('youAreBuying')}{' '}
-          <ValueWrapper>
-            {b(
-              `${amountFormatter(
-                props.independentValueParsed,
-                props.independentDecimals,
-                Math.min(4, props.independentDecimals)
-              )} ${props.outputSymbol}`
-            )}
-          </ValueWrapper>{' '}
-          {t('forAtMost')}{' '}
-          <ValueWrapper>
-            {b(
-              `${amountFormatter(
-                props.dependentValueMaximum,
-                props.dependentDecimals,
-                Math.min(4, props.dependentDecimals)
-              )} ${props.inputSymbol}`
-            )}
-          </ValueWrapper>{' '}
-          <LastSummaryText>
-            {t('priceChange')} <ValueWrapper>{b(`${props.percentSlippageFormatted}%`)}</ValueWrapper>
-          </LastSummaryText>
-        </TransactionInfo>
-      )
-    }
+              }
+            </ReceivedValueWrapper>{' '}
+          </SummaryWrapper>
+        </SummaryContainer>
+        <SummaryText>
+          {t('priceChange')} <SlippageValueWrapper>{`${props.percentSlippageFormatted}%`}</SlippageValueWrapper>
+        </SummaryText>
+      </TransactionInfo>
+    )
   }
   return <>{renderSummary()}</>
 }

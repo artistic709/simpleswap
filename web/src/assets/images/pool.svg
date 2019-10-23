@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 59.1 (86144) - https://sketch.com -->
+    <title>Pool</title>
+    <desc>Created with Sketch.</desc>
+    <g id="Pool" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M20,7 C20.5522847,7 21,7.44771525 21,8 L21,8 L21,20 C21,20.5522847 20.5522847,21 20,21 L20,21 L8,21 C7.44771525,21 7,20.5522847 7,20 C7,19.4477153 7.44771525,19 8,19 L8,19 L19,19 L19,8 C19,7.44771525 19.4477153,7 20,7 Z M16,3 C16.5522847,3 17,3.44771525 17,4 L17,16 C17,16.5522847 16.5522847,17 16,17 L4,17 C3.44771525,17 3,16.5522847 3,16 L3,4 C3,3.44771525 3.44771525,3 4,3 L16,3 Z M15,5 L5,5 L5,15 L15,15 L15,5 Z M13,9 C13.5522847,9 14,9.44771525 14,10 C14,10.5522847 13.5522847,11 13,11 L13,11 L7,11 C6.44771525,11 6,10.5522847 6,10 C6,9.44771525 6.44771525,9 7,9 L7,9 Z" id="Combined-Shape" fill="#FFFFFF" fill-rule="nonzero"></path>
+    </g>
+</svg>
