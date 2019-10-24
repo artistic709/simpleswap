@@ -53,6 +53,7 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     mapping(address => uint256) public USDXReserveOf;
     uint256 public feeRate = 3000000000000000;
     address public USDX = address(0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371);
+    uint256 public USDXwithdrawed;
 
     /***********************************|
     |        Manager Functions          |
@@ -69,6 +70,20 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         ERC20Adapter(a).setup(_id, _name, _symbol, _decimals);
         adapter[_id] = a;
         emit NewAdapter(_id, a);
+    }
+
+    function transferOut(address token, address to, uint256 amount) public onlyOwner returns(bool) {
+        require(token == USDX);
+        uint256 _balance = ERC20(USDX).balanceOf(address(this));
+        USDXwithdrawed = USDXwithdrawed.add(amount);
+        require(USDXwithdrawed <= _balance.sub(amount)); //up to 50% withdrawal
+        require(doTransferOut(token, to, amount));
+    }
+
+    function transferIn(address token, address from, uint256 amount) public onlyOwner returns(bool) {
+        require(token == USDX);
+        USDXwithdrawed = USDXwithdrawed.sub(amount);
+        require(doTransferIn(token, from, amount));
     }
 
     /***********************************|
