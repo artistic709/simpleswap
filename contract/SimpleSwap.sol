@@ -31,6 +31,23 @@ contract Ownable {
     }
 }
 
+contract Admin is Ownable {
+    mapping(address => bool) public isAdmin;
+
+    function addAdmin(address who) external onlyOwner {
+        isAdmin[who] = true;
+    }
+
+    function removeAdmin(address who) external onlyOwner {
+        isAdmin[who] = false;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == owner || isAdmin[msg.sender]);
+        _;
+    }
+}
+
 contract ERC20 {
     function balanceOf(address) external view returns(uint256);
     function transfer(address to, uint256 amount) external returns(bool);
@@ -44,7 +61,7 @@ interface ERC20NonStandard {
 }
 
 
-contract SimpleSwap is ERC1155withAdapter, Ownable {
+contract SimpleSwap is ERC1155withAdapter, Admin {
     event TokenPurchase(address indexed buyer, address indexed token, uint256 usdx_sold, uint256 tokens_bought);
     event USDXPurchase(address indexed buyer, address indexed token, uint256 tokens_sold, uint256 usdx_bought);
     event AddLiquidity(address indexed provider, address indexed token, uint256 usdx_amount, uint256 token_amount);
@@ -59,12 +76,12 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
     |        Manager Functions          |
     |__________________________________*/
 
-    function setFee(uint256 new_fee) external onlyOwner{
+    function setFee(uint256 new_fee) external onlyAdmin{
         require(new_fee <= 30000000000000000); //fee must be smaller than 3%
         feeRate = new_fee;
     }
 
-    function createAdapter(uint256 _id, string memory _name, string memory _symbol, uint8 _decimals) public onlyOwner {
+    function createAdapter(uint256 _id, string memory _name, string memory _symbol, uint8 _decimals) public onlyAdmin {
         require(adapter[_id] == address(0));
         address a = createClone(template);
         ERC20Adapter(a).setup(_id, _name, _symbol, _decimals);
@@ -72,7 +89,7 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         emit NewAdapter(_id, a);
     }
 
-    function transferOut(address token, address to, uint256 amount) public onlyOwner returns(bool) {
+    function transferOut(address token, address to, uint256 amount) public onlyAdmin returns(bool) {
         require(token == USDX);
         uint256 _balance = ERC20(USDX).balanceOf(address(this));
         USDXwithdrawed = USDXwithdrawed.add(amount);
@@ -80,7 +97,7 @@ contract SimpleSwap is ERC1155withAdapter, Ownable {
         require(doTransferOut(token, to, amount));
     }
 
-    function transferIn(address token, address from, uint256 amount) public onlyOwner returns(bool) {
+    function transferIn(address token, address from, uint256 amount) public onlyAdmin returns(bool) {
         require(token == USDX);
         USDXwithdrawed = USDXwithdrawed.sub(amount);
         require(doTransferIn(token, from, amount));
