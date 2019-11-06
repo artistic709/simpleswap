@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useMemo, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useMemo, useCallback } from 'react'
 import { ethers } from 'ethers'
 import { getTokenReserves, getMarketDetails, BigNumber } from '@uniswap/sdk'
 import { useWeb3Context } from 'web3-react'
@@ -61,43 +61,42 @@ export function useFetchAllBalances() {
 
   const { allBalanceData } = safeAccess(state, [networkId, account]) || {}
 
-  useEffect(() => {
-    const getData = async () => {
-      if (!!library && !!account) {
-        const newBalances = {}
-        await Promise.all(
-          Object.keys(allTokens).map(async k => {
-            let balance = null
-            let ethRate = null
-    
-            if (isAddress(k) || k === 'ETH') {
-              if (k === 'ETH') {
-                balance = await getEtherBalance(account, library).catch(() => null)
-                ethRate = ONE
-              } else {
-                balance = await getTokenBalance(k, account, library).catch(() => null)
-    
-                // only get values for tokens with positive balances
-                if (!!balance && balance.gt(ZERO)) {
-                  const tokenReserves = await getTokenReserves(k, library).catch(() => null)
-                  if (!!tokenReserves) {
-                    const marketDetails = getMarketDetails(tokenReserves)
-                    if (marketDetails.marketRate && marketDetails.marketRate.rate) {
-                      ethRate = marketDetails.marketRate.rate
-                    }
+  const getData = async () => {
+    if (!!library && !!account) {
+      const newBalances = {}
+      await Promise.all(
+        Object.keys(allTokens).map(async k => {
+          let balance = null
+          let ethRate = null
+
+          if (isAddress(k) || k === 'ETH') {
+            if (k === 'ETH') {
+              balance = await getEtherBalance(account, library).catch(() => null)
+              ethRate = ONE
+            } else {
+              balance = await getTokenBalance(k, account, library).catch(() => null)
+
+              // only get values for tokens with positive balances
+              if (!!balance && balance.gt(ZERO)) {
+                const tokenReserves = await getTokenReserves(k, library).catch(() => null)
+                if (!!tokenReserves) {
+                  const marketDetails = getMarketDetails(tokenReserves)
+                  if (marketDetails.marketRate && marketDetails.marketRate.rate) {
+                    ethRate = marketDetails.marketRate.rate
                   }
                 }
               }
-    
-              return (newBalances[k] = { balance, ethRate })
             }
-          })
-        )
-        update(newBalances, networkId, account)
-      }
+
+            return (newBalances[k] = { balance, ethRate })
+          }
+        })
+      )
+      update(newBalances, networkId, account)
     }
-    getData()
-  }, [account, library, networkId, allTokens, update])
+  }
+
+  useMemo(getData, [account])
 
   return allBalanceData
 }

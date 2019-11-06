@@ -8,6 +8,7 @@ const RESPONSE = 'response'
 const CUSTOM_DATA = 'CUSTOM_DATA'
 const BLOCK_NUMBER_CHECKED = 'BLOCK_NUMBER_CHECKED'
 const RECEIPT = 'receipt'
+const TIMESTAMP = 'timestamp'
 
 const ADD = 'ADD'
 const CHECK = 'CHECK'
@@ -57,7 +58,7 @@ function reducer(state, { type, payload }) {
       }
     }
     case FINALIZE: {
-      const { networkId, hash, receipt } = payload
+      const { networkId, hash, receipt, timestamp } = payload
 
       if (safeAccess(state, [networkId, hash]) === null) {
         throw Error('Attempted to finalize non-existent transaction.')
@@ -69,7 +70,8 @@ function reducer(state, { type, payload }) {
           ...(safeAccess(state, [networkId]) || {}),
           [hash]: {
             ...(safeAccess(state, [networkId, hash]) || {}),
-            [RECEIPT]: receipt
+            [RECEIPT]: receipt,
+            [TIMESTAMP]: timestamp
           }
         }
       }
@@ -89,8 +91,8 @@ export default function Provider({ children }) {
   const check = useCallback((networkId, hash, blockNumber) => {
     dispatch({ type: CHECK, payload: { networkId, hash, blockNumber } })
   }, [])
-  const finalize = useCallback((networkId, hash, receipt) => {
-    dispatch({ type: FINALIZE, payload: { networkId, hash, receipt } })
+  const finalize = useCallback((networkId, hash, receipt, timestamp) => {
+    dispatch({ type: FINALIZE, payload: { networkId, hash, receipt, timestamp } })
   }, [])
 
   return (
@@ -125,7 +127,9 @@ export function Updater() {
                 if (!receipt) {
                   check(networkId, hash, globalBlockNumber)
                 } else {
-                  finalize(networkId, hash, receipt)
+                  library.getBlock(receipt.blockNumber).then(block => {
+                    finalize(networkId, hash, receipt, block.timestamp)
+                  })
                 }
               }
             })
@@ -189,4 +193,10 @@ export function usePendingApproval(tokenAddress) {
       }
     }).length >= 1
   )
+}
+
+export function useHasPendingTransaction() {
+  const allTransactions = useAllTransactions()
+
+  return Object.keys(allTransactions).some(hash => !allTransactions[hash].receipt)
 }

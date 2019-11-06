@@ -4,12 +4,10 @@ import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 import { transparentize } from 'polished'
 
-import { ReactComponent as Dropdown } from '../../assets/images/dropdown-blue.svg'
+import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
 
 import Modal from '../../components/Modal'
 import { useBodyKeyDown } from '../../hooks'
-
-import { lighten } from 'polished'
 
 const poolTabOrder = [
   {
@@ -26,21 +24,17 @@ const poolTabOrder = [
 
 const LiquidityContainer = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   border-radius: 0.25rem;
   border: none;
   background-color: ${({ theme }) => theme.white};
   box-shadow: 0 0 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem;
   font-size: 1rem;
-  color: ${({ theme }) => theme.nationBlue};
+  color: ${({ theme }) => theme.textBlack};
   font-weight: 500;
   cursor: pointer;
-
-  :hover {
-    color: ${({ theme }) => lighten(0.1, theme.nationBlue)};
-  }
 
   img {
     height: 0.75rem;
@@ -83,10 +77,10 @@ const PoolModal = styled.div`
   padding: 2rem 0 2rem 0;
 `
 
-const WrappedDropdown = ({ isError, highSlippageWarning, ...rest }) => <Dropdown {...rest} />
-const ColoredDropdown = styled(WrappedDropdown)`
+const WrappedArrowDropdown = ({ isError, highSlippageWarning, ...rest }) => <ArrowDropDown {...rest} />
+const ColoredArrowDropdown = styled(WrappedArrowDropdown)`
   path {
-    stroke: ${({ theme }) => theme.royalBlue};
+    stroke: ${({ theme }) => theme.textblack};
   }
 `
 
@@ -122,7 +116,7 @@ function ModeSelector({ location: { pathname }, history }) {
         }}
       >
         <LiquidityLabel>{t(activeTabKey)}</LiquidityLabel>
-        <ColoredDropdown alt="arrow down" />
+        <ColoredArrowDropdown alt="arrow down" />
       </LiquidityContainer>
       <Modal
         isOpen={modalIsOpen}

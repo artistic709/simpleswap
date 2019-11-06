@@ -10,6 +10,17 @@ import Circle from '../../assets/images/circle.svg'
 
 const { Connector } = Connectors
 
+const WrongNetworkWarning = styled.div`
+  width: 100%;
+  height: 4.5rem;
+  border-bottom: 2px solid ${({ theme }) => theme.black};
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: ${({ theme }) => theme.midnightBlue};
+  color: ${({ theme }) => theme.white};
+`
+
 const MessageWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -32,7 +43,8 @@ const SpinnerWrapper = styled(Spinner)`
 `
 
 function tryToSetConnector(setConnector, setError) {
-  setConnector('Injected', { suppressAndThrowErrors: true }).catch(() => {
+  setConnector('Injected', { suppressAndThrowErrors: true }).catch((error) => {
+    setError(error)
     setConnector('Network', { suppressAndThrowErrors: true }).catch(error => {
       setError(error)
     })
@@ -41,7 +53,10 @@ function tryToSetConnector(setConnector, setError) {
 
 export default function Web3ReactManager({ children }) {
   const { t } = useTranslation()
-  const { active, error, setConnector, setError } = useWeb3Context()
+  const { active, error, networkId, connectorName, setConnector, setError } = useWeb3Context()
+
+  const [unsupportedNetworkError, setUnsupportedNetworkError] = useState(false)
+
   // control whether or not we render the error, after parsing
   const blockRender = error && error.code && error.code === Connector.errorCodes.UNSUPPORTED_NETWORK
 
@@ -68,19 +83,23 @@ export default function Web3ReactManager({ children }) {
         })
       }
     }
-  })
+  }, [active, error, setConnector, setError])
 
   // parse the error
   useEffect(() => {
     if (error) {
       // if the user changes to the wrong network, unset the connector
       if (error.code === Connector.errorCodes.UNSUPPORTED_NETWORK) {
-        setConnector('Network', { suppressAndThrowErrors: true }).catch(error => {
-          setError(error)
-        })
+        setUnsupportedNetworkError(true)
       }
     }
-  })
+  }, [error, setUnsupportedNetworkError])
+
+  useEffect(() => {
+    if (connectorName === 'Injected' && (networkId === 1 || networkId === 4)) {
+      setUnsupportedNetworkError(false)
+    }
+  }, [connectorName, networkId])
 
   const [showLoader, setShowLoader] = useState(false)
   useEffect(() => {
@@ -92,8 +111,15 @@ export default function Web3ReactManager({ children }) {
     }
   }, [])
 
-  if (blockRender) {
-    return null
+  if (blockRender || unsupportedNetworkError) {
+    return (
+      <>
+        <WrongNetworkWarning>
+          Note: SimoleSwap is currently only available on Mainnet or the Rinkeby Testnet.
+        </WrongNetworkWarning>
+        {children}
+      </>
+    )
   } else if (error) {
     return (
       <MessageWrapper>

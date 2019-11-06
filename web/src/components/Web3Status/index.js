@@ -3,10 +3,8 @@ import styled from 'styled-components'
 import { useTranslation } from 'react-i18next'
 import { useWeb3Context, Connectors } from 'web3-react'
 import { ethers } from 'ethers'
-import WalletModal from '../WalletModal'
 import { shortenAddress, getNetworkName } from '../../utils'
 import { useENSName } from '../../hooks'
-import { useAllTransactions } from '../../contexts/Transactions'
 import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
 
 const { Connector } = Connectors
@@ -163,25 +161,34 @@ const StyledArrowDropDown = styled(ArrowDropDown)`
   }
 `
 
+const ConnectButton = styled.button`
+  width: 4.5rem;
+  height: 2rem;
+  margin: 0.75rem;
+  border: none;
+  border-radius: 0.25rem;
+  outline: none;
+  background-color: ${({ theme }) => theme.white};
+  color: ${({ theme }) => theme.textColor};
+  font-size: 0.875rem;
+  font-weight: 400;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+
+  @media screen and (min-width: 600px) {
+    margin: 1.25rem;
+  }
+`
+
 export default function Web3Status() {
   const { t } = useTranslation()
   const { active, networkId, account, connectorName, setConnector } = useWeb3Context()
 
   const ENSName = useENSName(account)
 
-  const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState()
-
-  const allTransactions = useAllTransactions()
-
-  const pending = Object.keys(allTransactions)
-    .map(hash => allTransactions[hash])
-    .filter(transaction => !transaction.receipt)
-
-  const confirmed = Object.keys(allTransactions)
-    .map(hash => allTransactions[hash])
-    .filter(transaction => transaction.receipt)
-  // const hasPendingTransactions = !!pending.length
 
   // janky logic to detect log{ins,outs}...
   useEffect(() => {
@@ -238,26 +245,18 @@ export default function Web3Status() {
     }
   }, [connectorName, setConnector, setError, networkId])
 
-  function openWalletModal() {
-    setIsOpen(true)
-  }
-
-  function closeWalletModal() {
-    setIsOpen(false)
-  }
-
-  function onClick() {
-    if (account) {
-      setConnector('Network').catch(err => {
+  function onConnect() {
+    setConnector('Injected', { suppressAndThrowErrors: true }).catch(err => {
+      if (err.code === Connector.errorCodes.UNSUPPORTED_NETWORK) {
         setError(err)
-      })
-    } else {
-      setConnector('Injected', { suppressAndThrowErrors: true }).catch(err => {
-        if (err.code === Connector.errorCodes.UNSUPPORTED_NETWORK) {
-          setError(err)
-        }
-      })
-    }
+      }
+    })
+  }
+
+  function onLogout() {
+    setConnector('Network').catch(err => {
+      setError(err)
+    })
   }
 
   function getInjectedNetworkName() {
@@ -271,11 +270,15 @@ export default function Web3Status() {
       : t('Connect to MetaMask')
   }
 
-  return (
-    active && (
+  if (!active) {
+    return null
+  } else if (!account) {
+    return <ConnectButton onClick={onConnect}>Connect</ConnectButton>
+  } else {
+    return (
       <Web3StatusWrapper>
         <Web3NetworkStatus>
-          <Web3NetworkIndicator />
+          <Web3NetworkIndicator networkId={networkId}/>
           <SubText>{error ? 'Wrong Network' : getInjectedNetworkName(networkId)}</SubText>
         </Web3NetworkStatus>
         {
@@ -294,18 +297,9 @@ export default function Web3Status() {
         }
         <div className="web3-button-wrapper">
           <span><em /></span>
-          <Button onClick={onClick}>{account ? 'Logout' : 'Connect'}</Button>
-          { account && <Button onClick={openWalletModal}>Wallet</Button>}
+          <Button onClick={onLogout}>Logout</Button>
         </div>
-        <WalletModal
-          isOpen={isOpen}
-          error={error}
-          onDismiss={closeWalletModal}
-          ENSName={ENSName}
-          pendingTransactions={pending}
-          confirmedTransactions={confirmed}
-        />
       </Web3StatusWrapper>
     )
-  )
+  }
 }

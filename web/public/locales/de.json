@@ -58,7 +58,7 @@
   "totalSupplyIs0": "Die gesamte Anzahl Liquiditätstokens ist aktuell 0.",
   "tokenWorth": "Zum gegenwärtigen Wechselkurs ist jeder Pool Token so viel Wert",
   "firstLiquidity": "Du bist die erste Person die Liquidität bereitstellt!",
-  "initialExchangeRate": "Der initiale Wechselkurs wird auf deiner Überweisung basieren. Stelle sicher, dass deine ETH und {{ label }} denselben Fiatwert haben.",
+  "initialExchangeRate": "Der initiale Wechselkurs wird auf deiner Überweisung basieren. Stelle sicher, dass deine USDx und {{ label }} denselben Fiatwert haben.",
   "removeLiquidity": "Liquidität entfernen",
   "poolTokens": "Pool Tokens",
   "enterLabelCont": "{{ label }} Wert eingeben um fortzufahren.",

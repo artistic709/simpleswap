@@ -1,6 +1,6 @@
 {
-  "name": "simpleswap",
-  "description": "SimpleSwap Exchange Protocol",
+  "name": "stableswap",
+  "description": "StableSwap Exchange Protocol",
   "version": "0.1.0",
   "homepage": "https://simpleswap.pelith.com",
   "private": true,
@@ -10,6 +10,7 @@
     "@reach/tooltip": "^0.2.0",
     "@uniswap/sdk": "^1.0.0-beta.4",
     "copy-to-clipboard": "^3.2.0",
+    "date-fns": "^2.6.0",
     "escape-string-regexp": "^2.0.0",
     "ethers": "^4.0.36",
     "i18next": "^15.0.9",

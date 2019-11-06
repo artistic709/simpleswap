@@ -9,6 +9,8 @@ import {
   safeAccess
 } from '../utils'
 
+import TokenWhiteList from '../constants/tokenWhiteList.json'
+
 const NAME = 'name'
 const SYMBOL = 'symbol'
 const DECIMALS = 'decimals'
@@ -24,335 +26,24 @@ const UPDATE = 'UPDATE'
 // }
 
 const INITIAL_TOKENS_CONTEXT = {
-  1: {
-    '0x960b236A07cf122663c4303350609A66A7B288C0': {
-      [NAME]: 'Aragon Network Token',
-      [SYMBOL]: 'ANT',
-      [DECIMALS]: 18
-    },
-    '0x0D8775F648430679A709E98d2b0Cb6250d2887EF': {
-      [NAME]: 'Basic Attention Token',
-      [SYMBOL]: 'BAT',
-      [DECIMALS]: 18
-    },
-    '0x107c4504cd79C5d2696Ea0030a8dD4e92601B82e': {
-      [NAME]: 'Bloom Token',
-      [SYMBOL]: 'BLT',
-      [DECIMALS]: 18
-    },
-    '0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C': {
-      [NAME]: 'Bancor Network Token',
-      [SYMBOL]: 'BNT',
-      [DECIMALS]: 18
-    },
-    '0x26E75307Fc0C021472fEb8F727839531F112f317': {
-      [NAME]: 'Crypto20',
-      [SYMBOL]: 'C20',
-      [DECIMALS]: 18
-    },
-    '0xFDb0065240753FEF4880a9CC7876be59E09D78BB': {
-      [NAME]: 'CryptoCow',
-      [SYMBOL]: 'COW',
-      [DECIMALS]: 18
-    },
-    '0xF5DCe57282A584D2746FaF1593d3121Fcac444dC': {
-      [NAME]: 'Compound Dai',
-      [SYMBOL]: 'cDAI',
-      [DECIMALS]: 8
-    },
-    '0x41e5560054824eA6B0732E656E3Ad64E20e94E45': {
-      [NAME]: 'Civic',
-      [SYMBOL]: 'CVC',
-      [DECIMALS]: 8
-    },
-    '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359': {
-      [NAME]: 'Dai Stablecoin v1.0',
-      [SYMBOL]: 'DAI',
-      [DECIMALS]: 18
-    },
-    '0xE0B7927c4aF23765Cb51314A0E0521A9645F0E2A': {
-      [NAME]: 'DigixDAO',
-      [SYMBOL]: 'DGD',
-      [DECIMALS]: 9
-    },
-    '0x4f3AfEC4E5a3F2A6a1A411DEF7D7dFe50eE057bF': {
-      [NAME]: 'Digix Gold Token',
-      [SYMBOL]: 'DGX',
-      [DECIMALS]: 9
-    },
-    '0xc719d010B63E5bbF2C0551872CD5316ED26AcD83': {
-      [NAME]: 'Decentralized Insurance Protocol',
-      [SYMBOL]: 'DIP',
-      [DECIMALS]: 18
-    },
-    '0x4946Fcea7C692606e8908002e55A582af44AC121': {
-      [NAME]: 'FOAM Token',
-      [SYMBOL]: 'FOAM',
-      [DECIMALS]: 18
-    },
-    '0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b': {
-      [NAME]: 'FunFair',
-      [SYMBOL]: 'FUN',
-      [DECIMALS]: 8
-    },
-    '0x543Ff227F64Aa17eA132Bf9886cAb5DB55DCAddf': {
-      [NAME]: 'DAOstack',
-      [SYMBOL]: 'GEN',
-      [DECIMALS]: 18
-    },
-    '0x6810e776880C02933D47DB1b9fc05908e5386b96': {
-      [NAME]: 'Gnosis Token',
-      [SYMBOL]: 'GNO',
-      [DECIMALS]: 18
-    },
-    '0x12B19D3e2ccc14Da04FAe33e63652ce469b3F2FD': {
-      [NAME]: 'GRID Token',
-      [SYMBOL]: 'GRID',
-      [DECIMALS]: 12
-    },
-    '0x818Fc6C2Ec5986bc6E2CBf00939d90556aB12ce5': {
-      [NAME]: 'Kin',
-      [SYMBOL]: 'KIN',
-      [DECIMALS]: 18
-    },
-    '0xdd974D5C2e2928deA5F71b9825b8b646686BD200': {
-      [NAME]: 'Kyber Network Crystal',
-      [SYMBOL]: 'KNC',
-      [DECIMALS]: 18
-    },
-    '0x514910771AF9Ca656af840dff83E8264EcF986CA': {
-      [NAME]: 'ChainLink Token',
-      [SYMBOL]: 'LINK',
-      [DECIMALS]: 18
-    },
-    '0xBBbbCA6A901c926F240b89EacB641d8Aec7AEafD': {
-      [NAME]: 'LoopringCoin V2',
-      [SYMBOL]: 'LRC',
-      [DECIMALS]: 18
-    },
-    '0x6c6EE5e31d828De241282B9606C8e98Ea48526E2': {
-      [NAME]: 'HoloToken',
-      [SYMBOL]: 'HOT',
-      [DECIMALS]: 18
-    },
-    '0xD29F0b5b3F50b07Fe9a9511F7d86F4f4bAc3f8c4': {
-      [NAME]: 'Liquidity.Network Token',
-      [SYMBOL]: 'LQD',
-      [DECIMALS]: 18
-    },
-    '0xA4e8C3Ec456107eA67d3075bF9e3DF3A75823DB0': {
-      [NAME]: 'LoomToken',
-      [SYMBOL]: 'LOOM',
-      [DECIMALS]: 18
-    },
-    '0x58b6A8A3302369DAEc383334672404Ee733aB239': {
-      [NAME]: 'Livepeer Token',
-      [SYMBOL]: 'LPT',
-      [DECIMALS]: 18
-    },
-    '0x0F5D2fB29fb7d3CFeE444a200298f468908cC942': {
-      [NAME]: 'Decentraland MANA',
-      [SYMBOL]: 'MANA',
-      [DECIMALS]: 18
-    },
-    '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0': {
-      [NAME]: 'Matic Token',
-      [SYMBOL]: 'MATIC',
-      [DECIMALS]: 18
-    },
-    '0x80f222a749a2e18Eb7f676D371F19ad7EFEEe3b7': {
-      [NAME]: 'Magnolia Token',
-      [SYMBOL]: 'MGN',
-      [DECIMALS]: 18
-    },
-    '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2': {
-      [NAME]: 'Maker',
-      [SYMBOL]: 'MKR',
-      [DECIMALS]: 18
-    },
-    '0xec67005c4E498Ec7f55E092bd1d35cbC47C91892': {
-      [NAME]: 'Melon Token',
-      [SYMBOL]: 'MLN',
-      [DECIMALS]: 18
-    },
-    '0x957c30aB0426e0C93CD8241E2c60392d08c6aC8e': {
-      [NAME]: 'Modum Token',
-      [SYMBOL]: 'MOD',
-      [DECIMALS]: 0,
-    },
-    '0xB62132e35a6c13ee1EE0f84dC5d40bad8d815206': {
-      [NAME]: 'Nexo',
-      [SYMBOL]: 'NEXO',
-      [DECIMALS]: 18
-    },
-    '0x1776e1F26f98b1A5dF9cD347953a26dd3Cb46671': {
-      [NAME]: 'Numeraire',
-      [SYMBOL]: 'NMR',
-      [DECIMALS]: 18
-    },
-    '0x8E870D67F660D95d5be530380D0eC0bd388289E1': {
-      [NAME]: 'PAX',
-      [SYMBOL]: 'PAX',
-      [DECIMALS]: 18
-    },
-    '0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d': {
-      [NAME]: 'Pinakion',
-      [SYMBOL]: 'PNK',
-      [DECIMALS]: 18
-    },
-    '0x6758B7d441a9739b98552B373703d8d3d14f9e62': {
-      [NAME]: 'POA ERC20 on Foundation',
-      [SYMBOL]: 'POA20',
-      [DECIMALS]: 18
-    },
-    '0x687BfC3E73f6af55F0CccA8450114D107E781a0e': {
-      [NAME]: 'QChi',
-      [SYMBOL]: 'QCH',
-      [DECIMALS]: 18
-    },
-    '0xF970b8E36e23F7fC3FD752EeA86f8Be8D83375A6': {
-      [NAME]: 'Ripio Credit Network Token',
-      [SYMBOL]: 'RCN',
-      [DECIMALS]: 18
-    },
-    '0x255Aa6DF07540Cb5d3d297f0D0D4D84cb52bc8e6': {
-      [NAME]: 'Raiden Token',
-      [SYMBOL]: 'RDN',
-      [DECIMALS]: 18
-    },
-    '0x408e41876cCCDC0F92210600ef50372656052a38': {
-      [NAME]: 'Republic Token',
-      [SYMBOL]: 'REN',
-      [DECIMALS]: 18
-    },
-    '0x1985365e9f78359a9B6AD760e32412f4a445E862': {
-      [NAME]: 'Reputation',
-      [SYMBOL]: 'REP',
-      [DECIMALS]: 18
-    },
-    '0x168296bb09e24A88805CB9c33356536B980D3fC5': {
-      [NAME]: 'RHOC',
-      [SYMBOL]: 'RHOC',
-      [DECIMALS]: 8
-    },
-    '0x607F4C5BB672230e8672085532f7e901544a7375': {
-      [NAME]: 'iEx.ec Network Token',
-      [SYMBOL]: 'RLC',
-      [DECIMALS]: 9
-    },
-    '0xB4EFd85c19999D84251304bDA99E90B92300Bd93': {
-      [NAME]: 'Rocket Pool',
-      [SYMBOL]: 'RPL',
-      [DECIMALS]: 18
-    },
-    '0x4156D3342D5c385a87D264F90653733592000581': {
-      [NAME]: 'Salt',
-      [SYMBOL]: 'SALT',
-      [DECIMALS]: 8
-    },
-    '0x42456D7084eacF4083f1140d3229471bbA2949A8': {
-      [NAME]: 'Synth sETH',
-      [SYMBOL]: 'sETH',
-      [DECIMALS]: 18
-    },
-    '0x744d70FDBE2Ba4CF95131626614a1763DF805B9E': {
-      [NAME]: 'Status Network Token',
-      [SYMBOL]: 'SNT',
-      [DECIMALS]: 18
-    },
-    '0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F': {
-      [NAME]: 'Synthetix Network Token',
-      [SYMBOL]: 'SNX',
-      [DECIMALS]: 18
-    },
-    '0x42d6622deCe394b54999Fbd73D108123806f6a18': {
-      [NAME]: 'SPANK',
-      [SYMBOL]: 'SPANK',
-      [DECIMALS]: 18
-    },
-    '0xB64ef51C888972c908CFacf59B47C1AfBC0Ab8aC': {
-      [NAME]: 'StorjToken',
-      [SYMBOL]: 'STORJ',
-      [DECIMALS]: 8
-    },
-    '0x0cbe2df57ca9191b64a7af3baa3f946fa7df2f25': {
-      [NAME]: 'Synth sUSD',
-      [SYMBOL]: 'sUSD',
-      [DECIMALS]: 18
-    },
-    '0xaAAf91D9b90dF800Df4F55c205fd6989c977E73a': {
-      [NAME]: 'Monolith TKN',
-      [SYMBOL]: 'TKN',
-      [DECIMALS]: 8
-    },
-    '0x8dd5fbCe2F6a956C3022bA3663759011Dd51e73E': {
-      [NAME]: 'TrueUSD',
-      [SYMBOL]: 'TUSD',
-      [DECIMALS]: 18
-    },
-    '0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14': {
-      [NAME]: 'Uniswap V1',
-      [SYMBOL]: 'UNI-V1:DAI',
-      [DECIMALS]: 18
-    },
-    '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
-      [NAME]: 'USD//C',
-      [SYMBOL]: 'USDC',
-      [DECIMALS]: 6
-    },
-    '0xeb269732ab75a6fd61ea60b06fe994cd32a83549': {
-      [NAME]: 'UUDD',
-      [SYMBOL]: 'USDX',
-      [DECIMALS]: 18
-    },
-    '0x8f3470A7388c05eE4e7AF3d01D8C722b0FF52374': {
-      [NAME]: 'Veritaseum',
-      [SYMBOL]: 'VERI',
-      [DECIMALS]: 18
-    },
-    '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599': {
-      [NAME]: 'Wrapped BTC',
-      [SYMBOL]: 'WBTC',
-      [DECIMALS]: 8
-    },
-    '0x09fE5f0236F0Ea5D930197DCE254d77B04128075': {
-      [NAME]: 'Wrapped CryptoKitties',
-      [SYMBOL]: 'WCK',
-      [DECIMALS]: 18
-    },
-    '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': {
-      [NAME]: 'Wrapped Ether',
-      [SYMBOL]: 'WETH',
-      [DECIMALS]: 18
-    },
-    '0xB4272071eCAdd69d933AdcD19cA99fe80664fc08': {
-      [NAME]: 'CryptoFranc',
-      [SYMBOL]: 'XCHF',
-      [DECIMALS]: 18
-    },
-    '0xE41d2489571d322189246DaFA5ebDe1F4699F498': {
-      [NAME]: '0x Protocol Token',
-      [SYMBOL]: 'ZRX',
-      [DECIMALS]: 18
-    }
-  },
+  1: TokenWhiteList,
   4: {
     '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371': {
       [NAME]: 'UUDD',
       [SYMBOL]: 'USDx',
       [DECIMALS]: 18
     },
-    '0x6c936dadc3b31f66227922f759dcc298f7725c06': {
+    '0x19b0EcD07d9AB6C751ea804b60C60433B8cA1785': {
       [NAME]: 'CryptoCow',
       [SYMBOL]: 'COW',
       [DECIMALS]: 18
     },
-    '0x8E1456E8f9D305B12F663482De4ee1BBc61C4D61': {
+    '0x30CD74091E33f61Cd1D130f726db43DCF6F23746': {
       [NAME]: 'Token 1',
       [SYMBOL]: 'T1',
       [DECIMALS]: 18
     },
-    '0xc84ddbc694a8Cf1418d7127607CE93C05692E994': {
+    '0x9b7ADE0Ab7B123DF831C471F68fb7C018EeEd625': {
       [NAME]: 'Token 2',
       [SYMBOL]: 'T2',
       [DECIMALS]: 18
@@ -425,7 +116,7 @@ export function useTokenDetails(tokenAddress) {
 
       Promise.all([namePromise, symbolPromise, decimalsPromise]).then(
         ([resolvedName, resolvedSymbol, resolvedDecimals]) => {
-          if (!stale) {
+          if (!stale && resolvedName && resolvedSymbol && resolvedDecimals) {
             update(networkId, tokenAddress, resolvedName, resolvedSymbol, resolvedDecimals)
           }
         }

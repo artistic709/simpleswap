@@ -7,11 +7,10 @@ import { ReactComponent as Dropup } from '../../assets/images/dropup-blue.svg'
 import { ReactComponent as Dropdown } from '../../assets/images/dropdown-blue.svg'
 
 const SummaryWrapper = styled.div`
-  color: ${({ error, theme }) => (error ? theme.salmonRed : theme.doveGray)};
+  color: ${({ error, theme }) => (error ? theme.salmonRed : '#1F2734')};
   font-size: 0.75rem;
   text-align: center;
-  margin-top: 1rem;
-  padding-top: 1rem;
+  margin: 0.5rem 0;
 `
 
 const Details = styled.div`

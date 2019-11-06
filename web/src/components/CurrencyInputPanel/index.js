@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ethers } from 'ethers'
 import { BigNumber } from '@uniswap/sdk'
@@ -10,13 +10,15 @@ import Tooltip from '@reach/tooltip'
 import '@reach/tooltip/styles.css'
 import { isMobile } from 'react-device-detect'
 
-import { BorderlessInput } from '../../theme'
+import { Spinner } from '../../theme'
 import { useTokenContract } from '../../hooks'
 import { isAddress, calculateGasMargin, formatTokenBalance, formatEthBalance } from '../../utils'
 import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
 import { ReactComponent as Done } from '../../assets/images/done.svg'
+import { ReactComponent as Search } from '../../assets/images/search.svg'
+import { ReactComponent as Lock } from '../../assets/images/httpslock.svg'
+import Circle from '../../assets/images/circle-white.svg'
 import TokenLogo from '../TokenLogo'
-import SearchIcon from '../../assets/images/magnifying-glass.svg'
 import { useTransactionAdder, usePendingApproval } from '../../contexts/Transactions'
 import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useUSDPrice } from '../../contexts/Application'
@@ -27,19 +29,24 @@ const GAS_MARGIN = ethers.utils.bigNumberify(1000)
 // Menu
 const Menu = styled.div`
   position: absolute;
-  top: 6.5rem;
+  top: 7.5rem;
   left: 0;
   z-index: 10;
   width: 100%;
   padding: 0.5rem;
   display: ${({ isOpen }) => (isOpen ? 'block' : 'none')};
+
+  &:focus {
+    outline: none;
+  }
 `
   
 const TokenMenu = styled.div`
   max-height: 22rem;
   overflow-y: auto;
-  border-radius: 0.5rem;
+  border-radius: 0.25rem;
   background-color: ${({ theme }) => theme.white};
+  box-shadow: 0px 6px 23px 0px rgba(3,15,91,0.1);
 `
 
 const TokenMenuInfo = styled.div`
@@ -55,7 +62,7 @@ const TokenMenuRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 2rem;
+  padding: 1rem 1.5rem;
   cursor: pointer;
   user-select: none;
   border-top: 1px solid ${({ theme }) => theme.borderColor};
@@ -75,51 +82,50 @@ const FlexRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
   flex: 1 0;
+  position: relative;
 
   > *:not(:first-child) {
     margin-left: 12px;
   }
 `
 
-const SubCurrencySelect = styled.button`
-  ${({ theme }) => theme.flexRowNoWrap}
-  min-width: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 2.5rem;
-  padding: 0 0.75rem;
-  outline: none;
-  font-size: 1rem;
-  line-height: 0;
-  cursor: pointer;
-  user-select: none;
-  background: transparent;
-  border: 1px solid ${({ theme }) => theme.white};
-  border-radius: 1.25rem;
-  color: ${({ theme }) => theme.white};
+const Mask = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 `
 
 const InputRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  background: ${({ backgroundColor }) => backgroundColor};
+`
+
+const InputWrapper = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  justify-content: space-between;
+  align-items: center;
+  flex: 2 1;
+  min-width: 50%;
+  height: 3rem;
+  padding: 0 1rem;
   border-radius: 0.25rem;
   background-color: ${({ backgroundColor }) => backgroundColor};
 `
 
 const Input = styled.input`
-  flex: 2 1;
-  min-width: 50%;
-  height: 2.5rem;
-  padding: 0 1rem;
+  flex: 1 1;
   font-size: 1rem;
+  font-weight: 500;
   text-align: right;
   border: none;
-  border-radius: 0.25rem;
-  color: ${({ error, theme }) => error ? theme.salmonRed : theme.white};
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: transparent;
+  color: ${({ error, theme }) => error ? theme.cgRed : theme.white};
   -moz-appearance: textfield;
   user-select: none;
 
@@ -137,12 +143,31 @@ const Input = styled.input`
 }
 `
 
-const StyledBorderlessInput = styled(BorderlessInput)`
-  min-height: 2.5rem;
+const SearchInput = styled.input`
+  font-size: 1rem;
+  outline: none;
+  border: none;
+  flex: 1 1 auto;
+  width: 0;
+  min-height: 1.75rem;
   flex-shrink: 0;
   text-align: left;
-  padding-left: 1.6rem;
+  padding-left: 0.5rem;
   background-color: transparent;
+  color: ${({ theme }) => theme.mistGray};
+
+  [type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  ::-webkit-outer-spin-button,
+  ::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+
+  ::placeholder {
+    color: ${({ theme }) => theme.chaliceGray};
+  }
 `
 
 const CurrencySelect = styled.button`
@@ -179,6 +204,28 @@ const StyledArrowDropDown = styled(ArrowDropDown)`
   }
 `
 
+const LockButton = styled.button`
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &:focus {
+    outline: none;
+  }
+`
+
+const StyledLock = styled(Lock)`
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: ${({ theme }) => theme.white};
+  opacity: 0.8;
+`
+
 const InputPanel = styled.div`
   ${({ theme }) => theme.flexColumnNoWrap}
   position: relative;
@@ -195,7 +242,7 @@ const LabelRow = styled.div`
   color: ${({ theme }) => theme.textBlack};
   font-size: 1rem;
   font-weight: 500;
-  padding: 0.5rem 0;
+  padding-bottom: 0.5rem;
   span:hover {
     color: ${({ theme }) => darken(0.2, theme.doveGray)};
   }
@@ -224,11 +271,18 @@ const SearchRow = styled.div`
 const SearchContainer = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   justify-content: flex-start;
+  align-items: center;
   flex: 1;
   width: 100%;
   padding: 0.5rem 1rem;
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   background-color: ${({ theme }) => theme.solitude};
+`
+
+const StyledSearch = styled(Search)`
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: ${({ theme }) => theme.mistGray};
 `
 
 const TokenList = styled.div`
@@ -257,10 +311,10 @@ const TokenTitle = styled.div`
 `
 
 const TokenBalance = styled.div`
-  font-size: 1rem;
-  font-weigth: 400;
+  font-size: 0.875rem;
+  font-weight: 400;
   color: ${({ theme }) => theme.chaliceGray};
-  line-height: 20px;
+
 `
 
 const TokenFullName = styled.div`
@@ -282,6 +336,11 @@ const StyledDone = styled(Done)`
 
 const StyledTokenName = styled.span`
   margin: 0 0.25rem 0 0.25rem;
+  font-size: 0.875rem;
+
+  @media screen and (min-width: 600px) {
+    font-size: 1rem;
+  }
 `
 
 export default function CurrencyInputPanel({
@@ -300,23 +359,36 @@ export default function CurrencyInputPanel({
   showUnlock,
   value,
   renderExchangeRate,
-  inputBackgroundColor = '#3B83F7'
+  excludeTokens = [],
+  backgroundColor,
+  inputBackgroundColor
 }) {
   const { t } = useTranslation()
 
-  const [menuIsOpen, setMenuIsOpen] = useState(false)
-
   const { networkId } = useWeb3Context()
-
+  
   const tokenContract = useTokenContract(selectedTokenAddress)
-
+  
   const selectedTokenExchangeAddress = SIMPLESWAP_ADDRESSES[networkId]
   
   const pendingApproval = usePendingApproval(selectedTokenAddress)
-
+  
   const addTransaction = useTransactionAdder()
-
+  
   const allTokens = useAllTokenDetails()
+  
+  const [menuIsOpen, setMenuIsOpen] = useState(false)
+
+  const onChange = (event) => {
+    const value = event.target.value
+
+    if (!value || isNaN(value) || Number(value) === 0) {
+      onValueChange(value)
+    } else {
+      const valueParsed = BigNumber(value).toFixed(18).replace(/\.?0+$/,'')
+      onValueChange(valueParsed)
+    }
+  }
 
   function renderUnlockButton() {
     if (disableUnlock || !showUnlock || selectedTokenAddress === 'ETH' || !selectedTokenAddress) {
@@ -324,7 +396,7 @@ export default function CurrencyInputPanel({
     } else {
       if (!pendingApproval) {
         return (
-          <SubCurrencySelect
+          <LockButton
             onClick={async () => {
               const estimatedGas = await tokenContract.estimate.approve(
                 selectedTokenExchangeAddress,
@@ -340,11 +412,11 @@ export default function CurrencyInputPanel({
                 })
             }}
           >
-            {t('unlock')}
-          </SubCurrencySelect>
+            <StyledLock />
+          </LockButton>
         )
       } else {
-        return <SubCurrencySelect>{t('pending')}</SubCurrencySelect>
+        return <Spinner src={Circle} alt='loader' />
       }
     }
   }
@@ -363,7 +435,7 @@ export default function CurrencyInputPanel({
 
     return (
       <>
-        <InputRow backgroundColor={inputBackgroundColor}>
+        <InputRow backgroundColor={backgroundColor}>
           <FlexRow>
             <CurrencySelect
               selected={!!selectedTokenAddress}
@@ -383,26 +455,29 @@ export default function CurrencyInputPanel({
                 {!disableTokenSelect && <StyledArrowDropDown selected={!!selectedTokenAddress} />}
               </Aligner>
             </CurrencySelect>
-            {renderUnlockButton()}
+            {menuIsOpen && <Mask />}
           </FlexRow>
-          <Input
-            type="number"
-            min="0"
-            error={!!errorMessage}
-            placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
-            step="0.000000000000000001"
-            onChange={e => onValueChange(e.target.value)}
-            onKeyPress={e => {
-              const charCode = e.which ? e.which : e.keyCode
+          <InputWrapper backgroundColor={inputBackgroundColor}>
+            {renderUnlockButton()}
+            <Input
+              type="number"
+              min="0"
+              error={!!errorMessage}
+              placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
+              step="0.000000000000000001"
+              onChange={onChange}
+              onKeyPress={e => {
+                const charCode = e.which ? e.which : e.keyCode
 
-              // Prevent 'minus' character
-              if (charCode === 45) {
-                e.preventDefault()
-                e.stopPropagation()
-              }
-            }}
-            value={value}
-          />
+                // Prevent 'minus' character
+                if (charCode === 45) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }
+              }}
+              value={value}
+            />
+          </InputWrapper>
         </InputRow>
       </>
     )
@@ -449,13 +524,15 @@ export default function CurrencyInputPanel({
           onTokenSelect={onCurrencySelected}
           allBalances={allBalances}
           selectedTokenAddress={selectedTokenAddress}
+          excludeTokens={excludeTokens}
         />
       )}
     </InputPanel>
   )
 }
 
-function CurrencySelectMenu({ isOpen, onDismiss, onTokenSelect, allBalances, selectedTokenAddress }) {
+function CurrencySelectMenu(props) {
+  const { isOpen, onDismiss, onTokenSelect, allBalances, selectedTokenAddress, excludeTokens } = props
   const { t } = useTranslation()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -538,23 +615,56 @@ function CurrencySelectMenu({ isOpen, onDismiss, onTokenSelect, allBalances, sel
   }, [allBalances, allTokens, usdAmounts])
 
   const filteredTokenList = useMemo(() => {
-    return tokenList.filter(tokenEntry => {
-      // check the regex for each field
-      const regexMatches = Object.keys(tokenEntry).map(tokenEntryKey => {
-        return (
-          typeof tokenEntry[tokenEntryKey] === 'string' &&
-          !!tokenEntry[tokenEntryKey].match(new RegExp(escapeStringRegex(searchQuery), 'i'))
-        )
+    return tokenList
+      .filter(tokenEntry => {
+        return !excludeTokens.includes(tokenEntry.address)
       })
+      .filter(tokenEntry => {
+        // check the regex for each field
+        const regexMatches = Object.keys(tokenEntry).map(tokenEntryKey => {
+          return (
+            typeof tokenEntry[tokenEntryKey] === 'string' &&
+            !!tokenEntry[tokenEntryKey].match(new RegExp(escapeStringRegex(searchQuery), 'i'))
+          )
+        })
 
-      return regexMatches.some(m => m)
-    })
-  }, [tokenList, searchQuery])
+        return regexMatches.some(m => m)
+      })
+  }, [tokenList, searchQuery, excludeTokens])
+
+  const inputRef = useRef()
+
+  const [isFocus, setIsFocus] = useState(false)
+  useEffect(() => {
+    setIsFocus(isOpen)
+    if (isOpen) {
+      setTimeout(() => {
+        inputRef.current.focus()
+      })
+    }
+  }, [isOpen])
+
+  const onFocus = () => {
+    setIsFocus(true)
+  }
+
+  const onBlur = (event) => {
+    if (isFocus) {
+      onDismiss()
+    }
+  }
+
+  function onInput(event) {
+    const input = event.target.value
+    const checksummedInput = isAddress(input)
+    setSearchQuery(checksummedInput || input)
+  }
 
   function _onTokenSelect(address) {
     setSearchQuery('')
     onTokenSelect(address)
     onDismiss()
+    setIsFocus(false)
   }
 
   function renderTokenList() {
@@ -583,25 +693,19 @@ function CurrencySelectMenu({ isOpen, onDismiss, onTokenSelect, allBalances, sel
     })
   }
 
-
-  // manage focus on modal show
-  const inputRef = useRef()
-
-  function onInput(event) {
-    const input = event.target.value
-    const checksummedInput = isAddress(input)
-    setSearchQuery(checksummedInput || input)
-  }
-
   return (
     <Menu
-      isOpen={isOpen}
+      tabIndex={0}
+      isOpen={isFocus}
+      onFocus={onFocus}
+      onBlur={onBlur}
     >
       <TokenMenu>
         <SearchRow>
           <SearchContainer>
-            <img src={SearchIcon} alt="search" />
-            <StyledBorderlessInput
+            <StyledSearch />
+            <SearchInput
+              autoFocus
               ref={inputRef}
               type="text"
               placeholder={isMobile ? t('searchOrPasteMobile') : t('searchOrPaste')}

@@ -10,6 +10,7 @@ import { Button } from '../../theme'
 import CurrencyInputPanel from '../../components/CurrencyInputPanel'
 import ContextualInfo from '../../components/ContextualInfo'
 import OversizedPanel from '../../components/OversizedPanel'
+import TransactionHistory from '../../components/TransactionHistory'
 import ArrowDown from '../../assets/svg/SVGArrowDown'
 import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
@@ -86,7 +87,7 @@ const BlueSpan = styled.span`
 const OrangeSpan = styled.span`
   font-size: 1.25rem;
   font-weight: 500;
-  color: ${({ theme }) => theme.seaBuckthorn}
+  color: ${({ theme }) => theme.seaBuckthorn};
 `
 
 const StrongSpan = styled.span`
@@ -107,14 +108,13 @@ const DownArrow = styled(ArrowDown)`
   width: 0.625rem;
   height: 0.625rem;
   position: relative;
-  padding: 0.875rem;
   box-sizing: content-box;
 `
 
 const RemoveLiquidityOutput = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   align-items: center;
-  min-height: 3.5rem;
+  min-height: 4.5rem;
   background-color: ${({ theme }) => theme.white};
   box-shadow: 0 0px 36px 0 ${({ theme }) => transparentize(0.9, theme.shadowColor)};
 `
@@ -131,11 +131,6 @@ const RemoveLiquidityOutputPlus = styled.div`
   padding: 1rem 0;
 `
 
-const SummaryPanel = styled.div`
-  ${({ theme }) => theme.flexColumnNoWrap}
-  padding: 1rem 0;
-`
-
 const ExchangeRateWrapper = styled.div`
   ${({ theme }) => theme.flexRowNoWrap};
   margin-top: 0.5rem;
@@ -147,7 +142,7 @@ const ExchangeRateWrapper = styled.div`
 const Flex = styled.div`
   display: flex;
   justify-content: center;
-  padding: 2rem;
+  padding: 1rem;
 
   button {
     max-width: 20rem;
@@ -470,6 +465,9 @@ export default function RemoveLiquidity() {
         value={value}
         errorMessage={inputError}
         selectedTokenAddress={outputCurrency}
+        backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
+        inputBackgroundColor='#1460E8'
+        excludeTokens={['0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371']}
       />
       <OversizedPanel>
         <DownArrowBackground>
@@ -504,11 +502,8 @@ export default function RemoveLiquidity() {
           </ExchangeRateWrapper>
         )}
       />
-      <OversizedPanel hideBottom>
-        <SummaryPanel></SummaryPanel>
-      </OversizedPanel>
       <Row>
-      <DataPanel>
+        <DataPanel>
           <DataPanelItem>
             <div className="title">{t('currentPoolSize')}</div>
             {exchangeUSDXBalance && exchangeTokenBalance ? (
@@ -554,6 +549,7 @@ export default function RemoveLiquidity() {
           {t('removeLiquidity')}
         </Button>
       </Flex>
+      <TransactionHistory />
     </>
   )
 }

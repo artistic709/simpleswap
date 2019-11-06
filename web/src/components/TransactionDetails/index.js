@@ -611,9 +611,9 @@ export default function TransactionDetails(props) {
             <SentValueWrapper>
               {
                 `${amountFormatter(
-                  props.independentValueParsed,
-                  props.independentDecimals,
-                  Math.min(4, props.independentDecimals)
+                  props.inputValueParsed,
+                  props.inputDecimals,
+                  Math.min(4, props.inputDecimals)
                 )} ${props.inputSymbol}`
               }
             </SentValueWrapper>
@@ -626,9 +626,9 @@ export default function TransactionDetails(props) {
             <ReceivedValueWrapper>
               {
                 `${amountFormatter(
-                  props.dependentValueMinumum,
-                  props.dependentDecimals,
-                  Math.min(4, props.dependentDecimals)
+                  props.outputValueParsed,
+                  props.outputDecimals,
+                  Math.min(4, props.outputDecimals)
                 )} ${props.outputSymbol}`
               }
             </ReceivedValueWrapper>{' '}

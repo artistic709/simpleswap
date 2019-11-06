@@ -10,6 +10,7 @@ import { Button } from '../../theme'
 import CurrencyInputPanel from '../../components/CurrencyInputPanel'
 import OversizedPanel from '../../components/OversizedPanel'
 import ContextualInfo from '../../components/ContextualInfo'
+import TransactionHistory from '../../components/TransactionHistory'
 import { ReactComponent as Plus } from '../../assets/images/plus-blue.svg'
 import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
@@ -91,7 +92,7 @@ const BlueSpan = styled.span`
 const OrangeSpan = styled.span`
   font-size: 1.25rem;
   font-weight: 500;
-  color: ${({ theme }) => theme.seaBuckthorn}
+  color: ${({ theme }) => theme.seaBuckthorn};
 `
 
 const StrongSpan = styled.span`
@@ -124,10 +125,7 @@ const DownArrowBackground = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   justify-content: center;
   align-items: center;
-`
-const SummaryPanel = styled.div`
-  ${({ theme }) => theme.flexColumnNoWrap}
-  padding: 1rem 0;
+  margin-top: 0.5rem;
 `
 
 const ExchangeRateWrapper = styled.div`
@@ -141,7 +139,7 @@ const ExchangeRateWrapper = styled.div`
 const Flex = styled.div`
   display: flex;
   justify-content: center;
-  padding: 2rem;
+  padding: 1rem;
 
   button {
     max-width: 20rem;
@@ -196,7 +194,6 @@ const ColoredWrappedPlus = styled(WrappedPlus)`
   width: 1rem;
   height: 1rem;
   position: relative;
-  padding: 0.5rem;
   box-sizing: content-box;
   path {
     stroke: ${({ active, theme }) => (active ? theme.royalBlue : theme.chaliceGray)};
@@ -313,11 +310,13 @@ export default function AddLiquidity() {
     }
   }, [exchangeContract, outputCurrency])
   useEffect(() => {
-    fetchPoolTokens()
-    library.on('block', fetchPoolTokens)
-
-    return () => {
-      library.removeListener('block', fetchPoolTokens)
+    if (library) {
+      fetchPoolTokens()
+      library.on('block', fetchPoolTokens)
+  
+      return () => {
+        library.removeListener('block', fetchPoolTokens)
+      }
     }
   }, [fetchPoolTokens, library])
 
@@ -682,7 +681,7 @@ export default function AddLiquidity() {
             </span>{' '}
             {t('firstLiquidity')}
           </NewExchangeWarningText>
-          <NewExchangeWarningText>{t('initialExchangeRate', { symbol })}</NewExchangeWarningText>
+          <NewExchangeWarningText>{t('initialExchangeRate', { label: symbol })}</NewExchangeWarningText>
         </NewExchangeWarning>
       ) : null}
 
@@ -698,7 +697,8 @@ export default function AddLiquidity() {
         showUnlock={showUSDXUnlock}
         errorMessage={inputError}
         disableTokenSelect
-        inputBackgroundColor='#3B83F7'
+        backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
+        inputBackgroundColor='#1460E8'
       />
       <OversizedPanel>
         <DownArrowBackground>
@@ -720,16 +720,15 @@ export default function AddLiquidity() {
         value={outputValue}
         showUnlock={showUnlock}
         errorMessage={outputError}
-        inputBackgroundColor='#EF9B4B'
+        backgroundColor='linear-gradient(90deg,rgba(251,152,54,1),rgba(254,148,44,1))'
+        inputBackgroundColor='#ED7C0E'
         renderExchangeRate={() => (
           <ExchangeRateWrapper>
             <span>{marketRate && `1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}`}</span>
           </ExchangeRateWrapper>
         )}
+        excludeTokens={['0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371']}
       />
-      <OversizedPanel hideBottom>
-        <SummaryPanel></SummaryPanel>
-      </OversizedPanel>
       <Row>
         <DataPanel>
           <DataPanelItem>
@@ -777,6 +776,7 @@ export default function AddLiquidity() {
           {t('addLiquidity')}
         </Button>
       </Flex>
+      <TransactionHistory />
     </>
   )
 }

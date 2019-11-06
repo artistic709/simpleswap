@@ -12,11 +12,12 @@ import CurrencyInputPanel from '../CurrencyInputPanel'
 import AddressInputPanel from '../AddressInputPanel'
 import OversizedPanel from '../OversizedPanel'
 import TransactionDetails from '../TransactionDetails'
+import TransactionHistory from '../TransactionHistory'
 import ArrowSwap from '../../assets/svg/SVGArrowSwap'
 import { amountFormatter, calculateGasMargin } from '../../utils'
 import { useSimpleSwapContract } from '../../hooks'
 import { useTokenDetails } from '../../contexts/Tokens'
-import { useTransactionAdder } from '../../contexts/Transactions'
+import { useTransactionAdder, useHasPendingTransaction } from '../../contexts/Transactions'
 import { useAddressBalance } from '../../contexts/Balances'
 import { useSimpleSwapReserveOf } from '../../contexts/SimpleSwap'
 import { useFetchAllBalances } from '../../contexts/AllBalances'
@@ -44,64 +45,16 @@ const DownArrowBackground = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
   justify-content: center;
   align-items: center;
+  margin-top: 0.5rem;
 `
 
 const WrappedArrowSwap = ({ clickable, active, ...rest }) => <ArrowSwap {...rest} />
 const SwapArrow = styled(WrappedArrowSwap)`
   position: relative;
-  padding: 0.875rem;
+  width: 2rem;
+  height: 2rem;
   box-sizing: content-box;
   cursor: ${({ clickable }) => clickable && 'pointer'};
-`
-
-const SendingChecker = styled.label`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: ${({ theme }) => theme.black};
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-align: center;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  cursor: pointer;
-  user-select: none;
-
-  > input[type=checkbox] {
-    width: 0;
-    height: 0;
-    opacity: 0;
-  }
-
-  > .checkmark {
-    position: relative;
-    width: 0.75rem;
-    height: 0.75rem;
-    margin-right: 0.5rem;
-    background-color: ${({ theme }) => theme.white};
-    border: 1px solid ${({ theme }) => theme.black};
-
-    &::after {
-      content: "";
-      position: absolute;
-      left: 2.7px;
-      top: 0;
-      width: 3px;
-      height: 6px;
-      border: solid white;
-      border-width: 0 2px 2px 0;
-      transform: rotate(45deg);
-      display: none;
-    }
-  }
-
-  > input[type=checkbox]:checked ~ .checkmark {
-    background-color: ${({ theme }) => theme.black};
-
-    &::after {
-      display: block;
-    }
-  }
 `
 
 const ExchangeRateWrapper = styled.div`
@@ -115,7 +68,7 @@ const ExchangeRateWrapper = styled.div`
 const Flex = styled.div`
   display: flex;
   justify-content: center;
-  padding: 2rem;
+  padding: 1.5rem;
 
   button {
     max-width: 20rem;
@@ -284,6 +237,7 @@ export default function ExchangePage({ initialCurrency }) {
   const { account, networkId } = useWeb3Context()
 
   const addTransaction = useTransactionAdder()
+  const hasPendingTransaction = useHasPendingTransaction()
 
   const [sending, setSending] = useState(false)
 
@@ -683,9 +637,13 @@ export default function ExchangePage({ initialCurrency }) {
     }
 
     const estimatedGasLimit = await estimate(...args, { value })
-    method(...args, { value, gasLimit: calculateGasMargin(estimatedGasLimit, GAS_MARGIN) }).then(response => {
-      addTransaction(response, { comment })
-    })
+    method(...args, { value, gasLimit: calculateGasMargin(estimatedGasLimit, GAS_MARGIN) })
+      .then(response => {
+        addTransaction(response, { comment })
+      })
+      .catch(() => {
+        return false
+      })
   }
 
   const [customSlippageError, setcustomSlippageError] = useState('')
@@ -721,7 +679,8 @@ export default function ExchangePage({ initialCurrency }) {
         selectedTokenAddress={inputCurrency}
         value={inputValueFormatted}
         errorMessage={inputError ? inputError : independentField === INPUT ? independentError : ''}
-        inputBackgroundColor='#3B83F7'
+        backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
+        inputBackgroundColor='#1460E8'
       />
       <OversizedPanel>
         <DownArrowBackground>
@@ -751,7 +710,8 @@ export default function ExchangePage({ initialCurrency }) {
         value={outputValueFormatted}
         errorMessage={independentField === OUTPUT ? independentError : ''}
         disableUnlock
-        inputBackgroundColor='#EF9B4B'
+        backgroundColor='linear-gradient(90deg,rgba(251,152,54,1),rgba(254,148,44,1))'
+        inputBackgroundColor='#ED7C0E'
         renderExchangeRate={() => (
           <ExchangeRateWrapper
             onClick={() => {
@@ -770,14 +730,7 @@ export default function ExchangePage({ initialCurrency }) {
           </ExchangeRateWrapper>
         )}
       />
-      <OversizedPanel>
-        <SendingChecker>
-          <input type="checkbox" value={sending} onChange={() => { setSending(!sending) }} />
-          <div className="checkmark"></div>
-          <span>Send to another account</span>
-        </SendingChecker>
-      </OversizedPanel>
-      {sending && <AddressInputPanel onChange={setRecipient} onError={setRecipientError} />}
+      <AddressInputPanel sending={sending} onCheckSending={() => { setSending(!sending) }} onChange={setRecipient} onError={setRecipientError} />
       <TransactionDetails
         account={account}
         setRawSlippage={setRawSlippage}
@@ -797,6 +750,8 @@ export default function ExchangePage({ initialCurrency }) {
         outputValueParsed={outputValueParsed}
         inputSymbol={inputSymbol}
         outputSymbol={outputSymbol}
+        inputDecimals={inputDecimals}
+        outputDecimals={outputDecimals}
         dependentValueMinumum={dependentValueMinumum}
         dependentValueMaximum={dependentValueMaximum}
         dependentDecimals={dependentDecimals}
@@ -808,19 +763,24 @@ export default function ExchangePage({ initialCurrency }) {
       />
       <Flex>
         <Button
-          disabled={!isValid || customSlippageError === 'invalid'}
+          disabled={!isValid || customSlippageError === 'invalid' || hasPendingTransaction}
           onClick={onSwap}
           warning={highSlippageWarning || customSlippageError === 'warning'}
         >
-          {sending
-            ? highSlippageWarning || customSlippageError === 'warning'
-              ? t('sendAnyway')
-              : t('send')
-            : highSlippageWarning || customSlippageError === 'warning'
-            ? t('swapAnyway')
-            : t('swap')}
+          {
+            hasPendingTransaction
+              ? t('pending')
+              : sending
+                ? highSlippageWarning || customSlippageError === 'warning'
+                  ? t('sendAnyway')
+                  : t('send')
+                : highSlippageWarning || customSlippageError === 'warning'
+                  ? t('swapAnyway')
+                  : t('swap')
+          }
         </Button>
       </Flex>
+      <TransactionHistory />
     </>
   )
 }

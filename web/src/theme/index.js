@@ -44,7 +44,7 @@ const theme = darkMode => ({
   inputBackground: darkMode ? '#202124' : white,
   placeholderGray: darkMode ? '#5F5F5F' : '#E1E1E1',
   shadowColor: darkMode ? '#000' : '#2F80ED',
-  borderColor: 'rgba(0,0,0,0.2)',
+  borderColor: '#E6E9F0',
 
   // grays
   concreteGray: darkMode ? '#292C2F' : '#FAFAFA',
@@ -56,9 +56,10 @@ const theme = darkMode => ({
   buttonOutlineGrey: darkMode ? '#FAFAFA' : '#F2F2F2',
   tokenRowHover: darkMode ? '#404040' : '#F2F2F2',
   zirconGray: '#E0E0E0',
-  mistGray: '#959595',
+  mistGray: '#A6ABB3',
   osloGray: '#8B8F95',
-  solitude: '#EAEEF4',
+  solitude: '#EDF0F6',
+  footerGray: '#9CA0A6',
 
   //blacks
   charcoalBlack: darkMode ? '#F2F2F2' : '#404040',
@@ -72,7 +73,7 @@ const theme = darkMode => ({
   midnightBlue: '#1F2734',
   nationBlue: '#5190F5',
   chetwodeBlue: '#5969B3',
-  franceBlue: '#3B83F7',
+  franceBlue: '#2E79FF',
 
   // purples
   wisteriaPurple: '#DC6BE5',
@@ -81,7 +82,7 @@ const theme = darkMode => ({
   cgRed: '#E33427',
   // orange
   pizazzOrange: '#FF8F05',
-  seaBuckthorn: '#EF9B4B',
+  seaBuckthorn: '#FA9028',
 
   // yellows
   warningYellow: '#FFE270',
@@ -93,7 +94,7 @@ const theme = darkMode => ({
   // green
   meadowGreen: '#21B393',
   etonGreen: '#93D198',
-  emerald: '#5CC77B',
+  emerald: '#0ACB73',
 
   //specific
   textHover: darkMode ? theme.uniswapPink : theme.doveGray,

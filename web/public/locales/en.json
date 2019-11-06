@@ -65,7 +65,7 @@
   "totalSupplyIs0": "Current total supply of liquidity tokens is 0.",
   "tokenWorth": "At current exchange rate, each pool token is worth",
   "firstLiquidity": "You are the first person to add liquidity!",
-  "initialExchangeRate": "The initial exchange rate will be set based on your deposits. Please make sure that your ETH and {{ label }} deposits have the same fiat value.",
+  "initialExchangeRate": "The initial exchange rate will be set based on your deposits. Please make sure that your USDx and {{ label }} deposits have the same fiat value.",
   "removeLiquidity": "Remove Liquidity",
   "poolTokens": "Pool Tokens",
   "enterLabelCont": "Enter a {{ label }} value to continue.",
@@ -86,5 +86,6 @@
   "forAtLeast": "for at least ",
   "Back to swap your tokens": "Back to swap your tokens",
   "noToken": "Can not find tokens",
-  "you": "You"
+  "you": "You",
+  "history": "History"
 }

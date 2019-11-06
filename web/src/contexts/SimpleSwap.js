@@ -100,12 +100,12 @@ export const useUSDXReserveOf = (tokenAddress) => {
       getUSDXReserveOf(tokenAddress, networkId, library)
         .then(reserve => {
           if (!stale) {
-            updateReserves(networkId, tokenAddress, reserve, blockNumber)
+            updateReserves(networkId, tokenAddress, reserve, globalBlockNumber)
           }
         })
         .catch(() => {
           if (!stale) {
-            updateReserves(networkId, tokenAddress, null, blockNumber)
+            updateReserves(networkId, tokenAddress, null, globalBlockNumber)
           }
         })
       return () => {
@@ -144,12 +144,12 @@ export const useSimpleSwapBalanceOf = (ownerAddress, tokenAddress) => {
       getSimpleSwapBalanceOf(ownerAddress, tokenAddress, networkId, library)
         .then(balance => {
           if (!stale) {
-            updateBalances(networkId, ownerAddress, balance, blockNumber)
+            updateBalances(networkId, ownerAddress, balance, globalBlockNumber)
           }
         })
         .catch(() => {
           if (!stale) {
-            updateBalances(networkId, ownerAddress, null, blockNumber)
+            updateBalances(networkId, ownerAddress, null, globalBlockNumber)
           }
         })
       return () => {

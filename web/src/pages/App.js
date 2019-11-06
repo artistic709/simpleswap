@@ -4,6 +4,7 @@ import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom'
 
 import Web3ReactManager from '../components/Web3ReactManager'
 import Header from '../components/Header'
+import Footer from '../components/Footer'
 import { isAddress } from '../utils'
 
 const Swap = lazy(() => import('./Swap'))
@@ -37,8 +38,14 @@ const BodyWrapper = styled.div`
 const Body = styled.div`
   max-width: 35rem;
   width: 90%;
-  padding-top: 2.25rem;
+  padding: 1rem 0;
   /* margin: 0 1.25rem 1.25rem 1.25rem; */
+`
+
+const FooterWrapper = styled.div`
+  ${({ theme }) => theme.flexRowNoWrap}
+  width: 100%;
+  justify-content: space-between;
 `
 
 export default function App() {
@@ -47,56 +54,59 @@ export default function App() {
       <Suspense fallback={null}>
         <AppWrapper>
           <BrowserRouter>
-          <HeaderWrapper>
-            <Header />
-          </HeaderWrapper>
-            <BodyWrapper>
-              <Body>
-                <Web3ReactManager>
-                    {/* this Suspense is for route code-splitting */}
-                    <Suspense fallback={null}>
-                      <Switch>
-                        <Route exact strict path="/swap" component={Swap} />
-                        <Route
-                          exact
-                          strict
-                          path="/swap/:tokenAddress?"
-                          render={({ match }) => {
-                            if (isAddress(match.params.tokenAddress)) {
-                              return <Swap initialCurrency={isAddress(match.params.tokenAddress)} />
-                            } else {
-                              return <Redirect to={{ pathname: '/swap' }} />
-                            }
-                          }}
-                        />
-                        <Route exact strict path="/send" component={Send} />
-                        <Route
-                          exact
-                          strict
-                          path="/send/:tokenAddress?"
-                          render={({ match }) => {
-                            if (isAddress(match.params.tokenAddress)) {
-                              return <Send initialCurrency={isAddress(match.params.tokenAddress)} />
-                            } else {
-                              return <Redirect to={{ pathname: '/send' }} />
-                            }
-                          }}
-                        />
-                        <Route
-                          path={[
-                            '/add-liquidity',
-                            '/remove-liquidity',
-                            '/create-exchange',
-                            '/create-exchange/:tokenAddress?'
-                          ]}
-                          component={Pool}
-                        />
-                        <Redirect to="/swap" />
-                      </Switch>
-                    </Suspense>
-                </Web3ReactManager>
-              </Body>
-            </BodyWrapper>
+            <Web3ReactManager>
+              <HeaderWrapper>
+                <Header />
+              </HeaderWrapper>
+              <BodyWrapper>
+                <Body>
+                      {/* this Suspense is for route code-splitting */}
+                      <Suspense fallback={null}>
+                        <Switch>
+                          <Route exact strict path="/swap" component={Swap} />
+                          <Route
+                            exact
+                            strict
+                            path="/swap/:tokenAddress?"
+                            render={({ match }) => {
+                              if (isAddress(match.params.tokenAddress)) {
+                                return <Swap initialCurrency={isAddress(match.params.tokenAddress)} />
+                              } else {
+                                return <Redirect to={{ pathname: '/swap' }} />
+                              }
+                            }}
+                          />
+                          <Route exact strict path="/send" component={Send} />
+                          <Route
+                            exact
+                            strict
+                            path="/send/:tokenAddress?"
+                            render={({ match }) => {
+                              if (isAddress(match.params.tokenAddress)) {
+                                return <Send initialCurrency={isAddress(match.params.tokenAddress)} />
+                              } else {
+                                return <Redirect to={{ pathname: '/send' }} />
+                              }
+                            }}
+                          />
+                          <Route
+                            path={[
+                              '/add-liquidity',
+                              '/remove-liquidity',
+                              '/create-exchange',
+                              '/create-exchange/:tokenAddress?'
+                            ]}
+                            component={Pool}
+                          />
+                          <Redirect to="/swap" />
+                        </Switch>
+                      </Suspense>
+                </Body>
+              </BodyWrapper>
+              <FooterWrapper>
+                <Footer />
+              </FooterWrapper>
+            </Web3ReactManager>
           </BrowserRouter>
         </AppWrapper>
       </Suspense>

@@ -27,8 +27,12 @@ if (process.env.NODE_ENV === 'production') {
 }
 ReactGA.pageview(window.location.pathname + window.location.search)
 
-const Network = new NetworkOnlyConnector({ providerURL: process.env.REACT_APP_NETWORK_URL || '' })
-const Injected = new InjectedConnector({ supportedNetworks: [Number(process.env.REACT_APP_NETWORK_ID || '1')] })
+const Network = new NetworkOnlyConnector({
+  providerURL: process.env.REACT_APP_NETWORK_URL || ''
+})
+const Injected = new InjectedConnector({
+  supportedNetworks: process.env.REACT_APP_NETWORK_IDS.split(',').map(id => Number(id))
+})
 const connectors = { Injected, Network }
 
 function ContextProviders({ children }) {

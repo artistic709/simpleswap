@@ -20,11 +20,12 @@ const InputContainer = styled.div`
 
 const LabelRow = styled.div`
   ${({ theme }) => theme.flexRowNoWrap}
+  justify-content: space-between;
   align-items: center;
   color: ${({ theme }) => theme.textBlack};
   font-size: 1rem;
   font-weight: 500;
-  padding: 0.5rem 0;
+  padding-bottom: 0.5rem;
 `
 
 const LabelContainer = styled.div`
@@ -46,11 +47,11 @@ const InputRow = styled.div`
   
   const Input = styled.input`
   width: 100%;
-  height: 2.5rem;
+  height: 3.5rem;
   padding: 0 1rem;
   font-size: 1rem;
   border: none;
-  color: ${({ error, theme }) => error && theme.salmonRed};
+  color: ${({ error, theme }) => error ? theme.cgRed : '#BABEC5'};
   background-color: ${({ theme }) => theme.white};
   -moz-appearance: textfield;
   user-select: none;
@@ -64,7 +65,61 @@ const InputRow = styled.div`
   }
 `
 
-export default function AddressInputPanel({ title, initialInput = '', onChange = () => {}, onError = () => {} }) {
+const SendingChecker = styled.label`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  color: ${({ theme }) => theme.black};
+  font-size: 1rem;
+  font-weight: 400;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+
+  > span {
+    padding-left: 0.5rem;
+  }
+  
+  > input[type=checkbox] {
+    width: 0;
+    height: 0;
+    opacity: 0;
+  }
+  
+  > .checkmark {
+    position: relative;
+    width: 1rem;
+    height: 1rem;
+    background-color: ${({ theme }) => theme.white};
+    border: 1px solid ${({ theme }) => theme.black};
+    cursor: pointer;
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 3.6px;
+      top: 0;
+      width: 5px;
+      height: 9px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      display: none;
+      cursor: pointer;
+    }
+  }
+
+  > input[type=checkbox]:checked ~ .checkmark {
+    background-color: ${({ theme }) => theme.black};
+
+    &::after {
+      display: block;
+    }
+  }
+`
+
+export default function AddressInputPanel(props) {
+  const { initialInput = '', sending, onCheckSending = () => {}, onChange = () => {}, onError = () => {} } = props
   const { t } = useTranslation()
 
   const { library } = useWeb3Context()
@@ -161,22 +216,29 @@ export default function AddressInputPanel({ title, initialInput = '', onChange =
       <InputContainer>
         <LabelRow>
           <LabelContainer>
-            <span>{title || t('recipientAddress')}</span>
+            <span>{sending ? t('recipientAddress') : ''}</span>
           </LabelContainer>
+          <SendingChecker>
+            <input type="checkbox" value={sending} onChange={() => { onCheckSending(!sending) }} />
+            <div className="checkmark"></div>
+            <span>Send to another account</span>
+          </SendingChecker>
         </LabelRow>
-        <InputRow>
-          <Input
-            type="text"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck="false"
-            placeholder="0x1234..."
-            error={input !== '' && error}
-            onChange={onInput}
-            value={input}
-          />
-        </InputRow>
+        {sending && 
+          <InputRow>
+            <Input
+              type="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              placeholder="0x1234..."
+              error={input !== '' && error}
+              onChange={onInput}
+              value={input}
+            />
+          </InputRow>
+        }
       </InputContainer>
     </InputPanel>
   )

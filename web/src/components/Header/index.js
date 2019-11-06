@@ -3,6 +3,7 @@ import { Link as RouteLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 import { darken } from 'polished'
+import { isMobile } from 'react-device-detect'
 
 import { Link } from '../../theme'
 import Web3Status from '../Web3Status'
@@ -75,6 +76,7 @@ const HeaderActions = styled.div`
 const HeaderLink = styled(RouteLink)`
   display: flex;
   align-itmes: center;
+  margin: ${isMobile ? '0.75rem' : '0'};
 
   > *:not(:first-child) {
     margin-left: 0.25rem;
@@ -145,7 +147,7 @@ export default function Header() {
       </HeaderElement>
       <HeaderActions>
         {renderHeaderLinks()}
-        <Web3Status />
+        {!isMobile && <Web3Status />}
       </HeaderActions>
     </HeaderFrame>
   )
