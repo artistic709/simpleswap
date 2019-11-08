@@ -71,15 +71,21 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     mapping(address => uint256) public TokenReserveOf;
     mapping(address => uint256) public TokenWithdrawed;
     uint256 public feeRate = 3000000000000000;
+    uint256 public reserveRate = 500000000000000000;
     address public USDX = address(0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371);
 
     /***********************************|
     |        Manager Functions          |
     |__________________________________*/
 
-    function setFee(uint256 new_fee) external onlyAdmin{
+    function setFee(uint256 new_fee) external onlyAdmin {
         require(new_fee <= 30000000000000000); //fee must be smaller than 3%
         feeRate = new_fee;
+    }
+
+    function setReserve(uint256 new_rate) external onlyAdmin {
+        require(new_rate <= 700000000000000000); //can withdraw at most 70%
+        reserveRate = new_rate;
     }
 
     function createAdapter(uint256 _id, string memory _name, string memory _symbol, uint8 _decimals) public onlyAdmin {
@@ -91,9 +97,9 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     }
 
     function transferOut(address token, address to, uint256 amount) public onlyAdmin returns(bool) {
-        uint256 _balance = ERC20(USDX).balanceOf(address(this));
-        TokenWithdrawed[token] = TokenWithdrawed[token].sub(amount);
-        require(TokenWithdrawed[token] <= _balance.sub(amount)); //up to 50% withdrawal
+        uint256 _balance = ERC20(token).balanceOf(address(this));
+        require(TokenWithdrawed[token].add(amount).mul(1e18) <= TokenWithdrawed[token].add(_balance).mul(reserveRate));
+        TokenWithdrawed[token] = TokenWithdrawed[token].add(amount);
         require(doTransferOut(token, to, amount));
     }
 
