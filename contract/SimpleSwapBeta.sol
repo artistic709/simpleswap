@@ -84,7 +84,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     }
 
     function setReserve(uint256 new_rate) external onlyAdmin {
-        require(new_rate <= 700000000000000000); //can withdraw at most 70%
+        require(new_rate <= 1000000000000000000); //can withdraw at most 100%
         reserveRate = new_rate;
     }
 
