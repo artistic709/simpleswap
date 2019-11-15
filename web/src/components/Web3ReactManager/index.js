@@ -7,6 +7,7 @@ import { isMobile } from 'react-device-detect'
 
 import { Spinner } from '../../theme'
 import Circle from '../../assets/images/circle.svg'
+import { ReactComponent as ErrorOutline } from '../../assets/images/error_outline.svg'
 
 const { Connector } = Connectors
 
@@ -21,11 +22,20 @@ const WrongNetworkWarning = styled.div`
   color: ${({ theme }) => theme.white};
 `
 
+const StyledErrorOutline = styled(ErrorOutline)`
+  fill: ${({ theme }) => theme.white};
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+`
+
+
 const MessageWrapper = styled.div`
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 20rem;
 `
 
 const Message = styled.h2`
@@ -101,10 +111,10 @@ export default function Web3ReactManager({ children }) {
     }
   }, [connectorName, networkId])
 
-  const [showLoader, setShowLoader] = useState(false)
+  const [showLoader, setShowLoader] = useState(true)
   useEffect(() => {
     const timeout = setTimeout(() => {
-      setShowLoader(true)
+      setShowLoader(false)
     }, 600)
     return () => {
       clearTimeout(timeout)
@@ -115,7 +125,18 @@ export default function Web3ReactManager({ children }) {
     return (
       <>
         <WrongNetworkWarning>
+          <StyledErrorOutline />
           Note: SimoleSwap is currently only available on Mainnet or the Rinkeby Testnet.
+        </WrongNetworkWarning>
+        {children}
+      </>
+    )
+  } else if (networkId === 4) {
+    return (
+      <>
+        <WrongNetworkWarning>
+          <StyledErrorOutline />
+          Note: You are currently connected to the Rinkeby Testnet
         </WrongNetworkWarning>
         {children}
       </>

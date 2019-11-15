@@ -28,11 +28,6 @@ const UPDATE = 'UPDATE'
 const INITIAL_TOKENS_CONTEXT = {
   1: TokenWhiteList,
   4: {
-    '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371': {
-      [NAME]: 'UUDD',
-      [SYMBOL]: 'USDx',
-      [DECIMALS]: 18
-    },
     '0x19b0EcD07d9AB6C751ea804b60C60433B8cA1785': {
       [NAME]: 'CryptoCow',
       [SYMBOL]: 'COW',
@@ -47,7 +42,17 @@ const INITIAL_TOKENS_CONTEXT = {
       [NAME]: 'Token 2',
       [SYMBOL]: 'T2',
       [DECIMALS]: 18
-    }
+    },
+    '0xaf21bb8ae7b7a5eec37964e478583cd486fd12e2': {
+      [NAME]: 'Test Token',
+      [SYMBOL]: 'TEST',
+      [DECIMALS]: 18
+    },
+    '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371': {
+      [NAME]: 'UUDD',
+      [SYMBOL]: 'USDx',
+      [DECIMALS]: 18
+    },
   }
 }
 

@@ -36,6 +36,7 @@ const LabelTitle = styled.div`
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-transform: uppercase;
 `
 
 const TransactionContainer = styled.div`

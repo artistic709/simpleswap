@@ -1,4 +1,5 @@
 import { ethers } from 'ethers'
+import BigNumber from 'bignumber.js'
 
 import SIMPLESWAP_ABI from '../constants/abis/simpleswap'
 import ERC20_ABI from '../constants/abis/erc20'
@@ -120,6 +121,14 @@ export function getUSDXReserveOf(tokenAddress, networkId, library, account) {
   return getSimpleSwapContract(networkId, library, account).USDXReserveOf(tokenAddress)
 }
 
+export function getTokenReserveOf(tokenAddress, networkId, library, account) {
+  if (!isAddress(tokenAddress)) {
+    throw Error(`Invalid 'tokenAddress' parameter '${tokenAddress}'`)
+  }
+
+  return getSimpleSwapContract(networkId, library, account).TokenReserveOf(tokenAddress)
+}
+
 export function getSimpleSwapBalanceOf(ownerAddress, tokenAddress, networkId, library, account) {
   if (!isAddress(tokenAddress)) {
     throw Error(`Invalid 'tokenAddress' parameter '${tokenAddress}'.`)
@@ -236,49 +245,18 @@ export function amountFormatter(amount, baseDecimals = 18, displayDecimals = 3, 
   if (!amount) {
     return undefined
   }
+
+  if (!BigNumber.isBigNumber(amount)) {
+    amount = new BigNumber(amount)
+  }
+
   // if amount is 0, return
-  else if (amount.isZero()) {
+  if (amount.isZero()) {
     return '0'
   }
+
   // amount > 0
-  else {
-    // amount of 'wei' in 1 'ether'
-    const baseAmount = ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(baseDecimals))
-
-    const minimumDisplayAmount = baseAmount.div(
-      ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(displayDecimals))
-    )
-
-    // if balance is less than the minimum display amount
-    if (amount.lt(minimumDisplayAmount)) {
-      return useLessThan
-        ? `<${ethers.utils.formatUnits(minimumDisplayAmount, baseDecimals)}`
-        : `${ethers.utils.formatUnits(amount, baseDecimals)}`
-    }
-    // if the balance is greater than the minimum display amount
-    else {
-      const roundUpAmount = minimumDisplayAmount.div(ethers.constants.Two)
-      const roundedAmount = amount.add(roundUpAmount)
-      const stringAmount = ethers.utils.formatUnits(roundedAmount, baseDecimals)
-
-      // if there isn't a decimal portion
-      if (!stringAmount.match(/\./)) {
-        return stringAmount
-      }
-      // if there is a decimal portion
-      else {
-        const [wholeComponent, decimalComponent] = stringAmount.split('.')
-        const displayedDecimalComponent = decimalComponent.substring(0, displayDecimals)
-          
-        // decimals are too small to show
-        if (displayedDecimalComponent === '0'.repeat(displayDecimals)) {
-          return wholeComponent
-        }
-        // decimals are not too small to show
-        else {
-          return `${wholeComponent}.${displayedDecimalComponent.replace(/0*$/, '')}`
-        }
-      }
-    }
-  }
+  return amount
+    .div(new BigNumber(10).pow(new BigNumber(baseDecimals)))
+    .toFixed(displayDecimals)
 }

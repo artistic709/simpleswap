@@ -2,12 +2,11 @@ import React, {
   createContext, useContext, useReducer, useMemo, useCallback, useEffect
 } from 'react'
 import { useWeb3Context } from 'web3-react'
-import { safeAccess, isAddress, getUSDXReserveOf, getSimpleSwapBalanceOf } from '../utils'
+import { safeAccess, isAddress, getUSDXReserveOf, getTokenReserveOf, getSimpleSwapBalanceOf } from '../utils'
 import { useBlockNumber } from './Application'
-import { useAddressBalance } from './Balances'
-import { SIMPLESWAP_ADDRESSES } from '../constants'
 
-const UPDATE_RESERVES = 'UPDATE_RESERVES'
+const UPDATE_USDX_RESERVES = 'UPDATE_USDX_RESERVES'
+const UPDATE_TOKEN_RESERVES = 'UPDATE_TOKEN_RESERVES'
 const UPDATE_BALANCES = 'UPDATE_BALANCES'
 
 const SimpleSwapContext = createContext()
@@ -17,20 +16,37 @@ const useSimpleSwapContext = () => {
 }
 
 const initialState = {
-  reserves: {},
+  usdxReserves: {},
+  tokenReserves: {},
   balances: {}
 }
 
 function reducer(state, { type, payload }) {
   switch (type) {
-    case UPDATE_RESERVES: {
+    case UPDATE_USDX_RESERVES: {
       const { networkId, tokenAddress, value, blockNumber } = payload
       return {
         ...state,
-        reserves: {
-          ...safeAccess(state, ['reserves']),
+        usdxReserves: {
+          ...safeAccess(state, ['usdxReserves']),
           [networkId]: {
-            ...safeAccess(state, ['reserves', networkId]),
+            ...safeAccess(state, ['usdxReserves', networkId]),
+            [tokenAddress]: {
+              value,
+              blockNumber
+            }
+          }
+        }
+      }
+    }
+    case UPDATE_TOKEN_RESERVES: {
+      const { networkId, tokenAddress, value, blockNumber } = payload
+      return {
+        ...state,
+        tokenReserves: {
+          ...safeAccess(state, ['tokenReserves']),
+          [networkId]: {
+            ...safeAccess(state, ['tokenReserves', networkId]),
             [tokenAddress]: {
               value,
               blockNumber
@@ -40,7 +56,7 @@ function reducer(state, { type, payload }) {
       }
     }
     case UPDATE_BALANCES: {
-      const { networkId, account, value, blockNumber } = payload
+      const { networkId, account, tokenAddress, value, blockNumber } = payload
       return {
         ...state,
         balances: {
@@ -48,8 +64,11 @@ function reducer(state, { type, payload }) {
           [networkId]: {
             ...safeAccess(state, ['balances', networkId]),
             [account]: {
-              value,
-              blockNumber
+              ...safeAccess(state, ['balances', networkId, account]),
+              [tokenAddress]: {
+                value,
+                blockNumber
+              }
             }
           }
         }
@@ -64,15 +83,22 @@ function reducer(state, { type, payload }) {
 export default function Provider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
 
-  const updateReserves = useCallback((networkId, tokenAddress, value, blockNumber) => {
-    dispatch({ type: UPDATE_RESERVES, payload: { networkId, tokenAddress, value, blockNumber } })
+  const updateUSDXReserves = useCallback((networkId, tokenAddress, value, blockNumber) => {
+    dispatch({ type: UPDATE_USDX_RESERVES, payload: { networkId, tokenAddress, value, blockNumber } })
   }, [])
 
-  const updateBalances = useCallback((networkId, account, value, blockNumber) => {
-    dispatch({ type: UPDATE_BALANCES, payload: { networkId, account, value, blockNumber } })
+  const updateTokenReserves = useCallback((networkId, tokenAddress, value, blockNumber) => {
+    dispatch({ type: UPDATE_TOKEN_RESERVES, payload: { networkId, tokenAddress, value, blockNumber } })
   }, [])
 
-  const value = useMemo(() => [state, { updateReserves, updateBalances }], [state, updateReserves, updateBalances])
+  const updateBalances = useCallback((networkId, account, tokenAddress, value, blockNumber) => {
+    dispatch({ type: UPDATE_BALANCES, payload: { networkId, account, tokenAddress, value, blockNumber } })
+  }, [])
+
+  const value = useMemo(
+    () => [state, { updateUSDXReserves, updateTokenReserves, updateBalances }],
+    [state, updateUSDXReserves, updateTokenReserves, updateBalances]
+  )
 
   return (
     <SimpleSwapContext.Provider value={value}>
@@ -86,8 +112,8 @@ export const useUSDXReserveOf = (tokenAddress) => {
 
   const globalBlockNumber = useBlockNumber()
 
-  const [state, { updateReserves }] = useSimpleSwapContext()
-  const { value, blockNumber } = safeAccess(state, ['reserves', networkId, tokenAddress]) || {}
+  const [state, { updateUSDXReserves }] = useSimpleSwapContext()
+  const { value, blockNumber } = safeAccess(state, ['usdxReserves', networkId, tokenAddress]) || {}
 
   useEffect(() => {
     if (
@@ -100,28 +126,62 @@ export const useUSDXReserveOf = (tokenAddress) => {
       getUSDXReserveOf(tokenAddress, networkId, library)
         .then(reserve => {
           if (!stale) {
-            updateReserves(networkId, tokenAddress, reserve, globalBlockNumber)
+            updateUSDXReserves(networkId, tokenAddress, reserve, globalBlockNumber)
           }
         })
         .catch(() => {
           if (!stale) {
-            updateReserves(networkId, tokenAddress, null, globalBlockNumber)
+            updateUSDXReserves(networkId, tokenAddress, null, globalBlockNumber)
           }
         })
       return () => {
         stale = true
       }
     }
-  }, [updateReserves, networkId, tokenAddress, value, blockNumber, globalBlockNumber, library])
+  }, [updateUSDXReserves, networkId, tokenAddress, value, blockNumber, globalBlockNumber, library])
+  
+  return value
+}
+
+export const useTokenReserveOf = (tokenAddress) => {
+  const { networkId, library } = useWeb3Context()
+
+  const globalBlockNumber = useBlockNumber()
+
+  const [state, { updateTokenReserves }] = useSimpleSwapContext()
+  const { value, blockNumber } = safeAccess(state, ['tokenReserves', networkId, tokenAddress]) || {}
+
+  useEffect(() => {
+    if (
+      isAddress(tokenAddress) &&
+      (value === undefined || blockNumber !== globalBlockNumber) &&
+      (networkId || networkId === 0) &&
+      library
+    ) {
+      let stale = false
+      getTokenReserveOf(tokenAddress, networkId, library)
+        .then(reserve => {
+          if (!stale) {
+            updateTokenReserves(networkId, tokenAddress, reserve, globalBlockNumber)
+          }
+        })
+        .catch(() => {
+          if (!stale) {
+            updateTokenReserves(networkId, tokenAddress, null, globalBlockNumber)
+          }
+        })
+      return () => {
+        stale = true
+      }
+    }
+  }, [updateTokenReserves, networkId, tokenAddress, value, blockNumber, globalBlockNumber, library])
   
   return value
 }
 
 export const useSimpleSwapReserveOf = (tokenAddress) => {
-  const { networkId } = useWeb3Context()
-
   const reserveUSDX = useUSDXReserveOf(tokenAddress)
-  const reserveToken = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], tokenAddress)
+  const reserveToken = useTokenReserveOf(tokenAddress)
 
   return { reserveUSDX, reserveToken }
 }
@@ -131,7 +191,7 @@ export const useSimpleSwapBalanceOf = (ownerAddress, tokenAddress) => {
 
   const globalBlockNumber = useBlockNumber()
   const [state, { updateBalances }] = useSimpleSwapContext()
-  const { value, blockNumber } = safeAccess(state, ['balances', networkId, ownerAddress]) || {}
+  const { value, blockNumber } = safeAccess(state, ['balances', networkId, ownerAddress, tokenAddress]) || {}
 
   useEffect(() => {
     if (
@@ -144,12 +204,12 @@ export const useSimpleSwapBalanceOf = (ownerAddress, tokenAddress) => {
       getSimpleSwapBalanceOf(ownerAddress, tokenAddress, networkId, library)
         .then(balance => {
           if (!stale) {
-            updateBalances(networkId, ownerAddress, balance, globalBlockNumber)
+            updateBalances(networkId, ownerAddress, tokenAddress, balance, globalBlockNumber)
           }
         })
         .catch(() => {
           if (!stale) {
-            updateBalances(networkId, ownerAddress, null, globalBlockNumber)
+            updateBalances(networkId, ownerAddress, tokenAddress, null, globalBlockNumber)
           }
         })
       return () => {

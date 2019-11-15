@@ -17,7 +17,11 @@ i18next
     fallbackLng: 'en',
     preload: ['en'],
     keySeparator: false,
-    interpolation: { escapeValue: false }
+    interpolation: { escapeValue: false },
+    detection: {
+      order: ['navigator', 'path', 'subdomain'],
+      caches: [],
+    }
   })
 
 export default i18next

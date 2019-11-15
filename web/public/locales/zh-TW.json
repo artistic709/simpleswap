@@ -75,5 +75,6 @@
   "Back to swap your tokens": "返回到兌換代幣",
   "noToken": "查無此代幣",
   "you": "你",
-  "history": "交易紀錄"
+  "history": "交易紀錄",
+  "insufficientReserve": "交易準備金不足"
 }

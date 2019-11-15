@@ -16,6 +16,7 @@ const AppWrapper = styled.div`
   flex-flow: column;
   align-items: flex-start;
   height: 100vh;
+  overflow: hidden;
 `
 
 const HeaderWrapper = styled.div`

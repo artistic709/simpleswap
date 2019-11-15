@@ -254,6 +254,7 @@ const LabelContainer = styled.div`
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-transform: uppercase;
 `
 
 const ErrorSpan = styled.span`

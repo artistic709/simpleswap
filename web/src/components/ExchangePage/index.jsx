@@ -16,7 +16,7 @@ import TransactionHistory from '../TransactionHistory'
 import ArrowSwap from '../../assets/svg/SVGArrowSwap'
 import { amountFormatter, calculateGasMargin } from '../../utils'
 import { useSimpleSwapContract } from '../../hooks'
-import { useTokenDetails } from '../../contexts/Tokens'
+import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useTransactionAdder, useHasPendingTransaction } from '../../contexts/Transactions'
 import { useAddressBalance } from '../../contexts/Balances'
 import { useSimpleSwapReserveOf } from '../../contexts/SimpleSwap'
@@ -116,13 +116,13 @@ function calculateUSDXTokenInputFromOutput(outputAmount, inputReserve, outputRes
   return numerator.div(denominator).add(ethers.constants.One)
 }
 
-function getInitialSwapState(outputCurrency) {
+function getInitialSwapState(initialCurrencies) {
   return {
     independentValue: '', // this is a user input
     dependentValue: '', // this is a calculated number
     independentField: INPUT,
-    inputCurrency: '',
-    outputCurrency: outputCurrency ? outputCurrency : ''
+    inputCurrency: initialCurrencies.inputCurrency ? initialCurrencies.inputCurrency: '',
+    outputCurrency: initialCurrencies.outputCurrency ? initialCurrencies.outputCurrency : ''
   }
 }
 
@@ -252,8 +252,15 @@ export default function ExchangePage({ initialCurrency }) {
     ReactGA.pageview(window.location.pathname + window.location.search)
   }, [])
 
+  const allTokens = useAllTokenDetails()
+
+  const initialCurrencies = {
+    inputCurrency: USDX_ADDRESSES[networkId],
+    outputCurrency: initialCurrency || Object.keys(allTokens)[0]
+  }
+
   // core swap state
-  const [swapState, dispatchSwapState] = useReducer(swapStateReducer, initialCurrency, getInitialSwapState)
+  const [swapState, dispatchSwapState] = useReducer(swapStateReducer, initialCurrencies, getInitialSwapState)
 
   const { independentValue, dependentValue, independentField, inputCurrency, outputCurrency } = swapState
 
@@ -279,15 +286,16 @@ export default function ExchangePage({ initialCurrency }) {
   // fetch reserves for each of the currency types
   const { reserveUSDX: inputReserveUSDX, reserveToken: inputReserveToken } = useSimpleSwapReserveOf(inputCurrency)
   const { reserveUSDX: outputReserveUSDX, reserveToken: outputReserveToken } = useSimpleSwapReserveOf(outputCurrency)
+  const realTokenReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], outputCurrency)
 
   // get balances for each of the currency types
   const inputBalance = useAddressBalance(account, inputCurrency)
   const outputBalance = useAddressBalance(account, outputCurrency)
   const inputBalanceFormatted = !!(inputBalance && Number.isInteger(inputDecimals))
-    ? amountFormatter(inputBalance, inputDecimals, Math.min(4, inputDecimals))
+    ? amountFormatter(inputBalance, inputDecimals, Math.min(3, inputDecimals))
     : ''
   const outputBalanceFormatted = !!(outputBalance && Number.isInteger(outputDecimals))
-    ? amountFormatter(outputBalance, outputDecimals, Math.min(4, outputDecimals))
+    ? amountFormatter(outputBalance, outputDecimals, Math.min(3, outputDecimals))
     : ''
 
   // compute useful transforms of the data above
@@ -358,6 +366,21 @@ export default function ExchangePage({ initialCurrency }) {
       }
     }
   }, [independentField, independentValueParsed, dependentValueMaximum, inputBalance, inputCurrency, inputAllowance, t])
+
+  // validate output reserve
+  const [outputError, setOutputError] = useState()
+  useEffect(() => {
+    const outputValueCalculation = independentField === INPUT ? dependentValueMaximum : independentValueParsed
+    if (realTokenReserve && outputValueCalculation && realTokenReserve.lt(outputValueCalculation)) {
+      setOutputError(t('insufficientReserve'))
+    } else {
+      setOutputError(null)
+    }
+
+    return () => {
+      setOutputError()
+    }
+  }, [dependentValueMaximum, independentField, independentValueParsed, realTokenReserve, t])
 
   // calculate dependent value
   useEffect(() => {
@@ -497,8 +520,8 @@ export default function ExchangePage({ initialCurrency }) {
   const highSlippageWarning = percentSlippage && percentSlippage.gte(ethers.utils.parseEther('.2')) // [20+%
 
   const isValid = sending
-    ? exchangeRate && inputError === null && independentError === null && recipientError === null
-    : exchangeRate && inputError === null && independentError === null
+    ? exchangeRate && inputError === null && outputError === null && independentError === null && recipientError === null
+    : exchangeRate && inputError === null && outputError === null && independentError === null
 
   const estimatedText = `(${t('estimated')})`
   function formatBalance(value) {
@@ -653,7 +676,7 @@ export default function ExchangePage({ initialCurrency }) {
   return (
     <>
       <CurrencyInputPanel
-        title={t('input')}
+        title={t('send')}
         allBalances={allBalances}
         description={inputValueFormatted && independentField === OUTPUT ? estimatedText : ''}
         extraText={inputBalanceFormatted && formatBalance(inputBalanceFormatted)}
@@ -675,7 +698,6 @@ export default function ExchangePage({ initialCurrency }) {
           dispatchSwapState({ type: 'UPDATE_INDEPENDENT', payload: { value: inputValue, field: INPUT } })
         }}
         showUnlock={showUnlock}
-        selectedTokens={[inputCurrency, outputCurrency]}
         selectedTokenAddress={inputCurrency}
         value={inputValueFormatted}
         errorMessage={inputError ? inputError : independentField === INPUT ? independentError : ''}
@@ -695,7 +717,7 @@ export default function ExchangePage({ initialCurrency }) {
         </DownArrowBackground>
       </OversizedPanel>
       <CurrencyInputPanel
-        title={t('output')}
+        title={t('receive')}
         allBalances={allBalances}
         description={outputValueFormatted && independentField === INPUT ? estimatedText : ''}
         extraText={outputBalanceFormatted && formatBalance(outputBalanceFormatted)}
@@ -705,7 +727,6 @@ export default function ExchangePage({ initialCurrency }) {
         onValueChange={outputValue => {
           dispatchSwapState({ type: 'UPDATE_INDEPENDENT', payload: { value: outputValue, field: OUTPUT } })
         }}
-        selectedTokens={[inputCurrency, outputCurrency]}
         selectedTokenAddress={outputCurrency}
         value={outputValueFormatted}
         errorMessage={independentField === OUTPUT ? independentError : ''}
@@ -739,6 +760,7 @@ export default function ExchangePage({ initialCurrency }) {
         slippageWarning={slippageWarning}
         highSlippageWarning={highSlippageWarning}
         inputError={inputError}
+        outputError={outputError}
         independentError={independentError}
         inputCurrency={inputCurrency}
         outputCurrency={outputCurrency}

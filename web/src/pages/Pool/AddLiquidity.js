@@ -688,7 +688,17 @@ export default function AddLiquidity() {
       <CurrencyInputPanel
         title={t('deposit')}
         allBalances={allBalances}
-        extraText={inputBalance && formatBalance(amountFormatter(inputBalance, 18, 4))}
+        extraText={inputBalance && formatBalance(amountFormatter(inputBalance, 18, 3))}
+        extraTextClickHander={() => {
+          if (inputBalance) {
+            if (inputBalance.gt(ethers.constants.Zero)) {
+              dispatchAddLiquidityState({
+                type: 'UPDATE_VALUE',
+                payload: { value: amountFormatter(inputBalance, 18, 18, false), field: INPUT }
+              })
+            }
+          }
+        }}
         onValueChange={inputValue => {
           dispatchAddLiquidityState({ type: 'UPDATE_VALUE', payload: { value: inputValue, field: INPUT } })
         }}
@@ -709,7 +719,17 @@ export default function AddLiquidity() {
         title={t('deposit')}
         allBalances={allBalances}
         description={isNewExchange ? '' : outputValue ? `(${t('estimated')})` : ''}
-        extraText={outputBalance && formatBalance(amountFormatter(outputBalance, decimals, Math.min(decimals, 4)))}
+        extraText={outputBalance && formatBalance(amountFormatter(outputBalance, decimals, Math.min(decimals, 3)))}
+        extraTextClickHander={() => {
+          if (outputBalance) {
+            if (outputBalance.gt(ethers.constants.Zero)) {
+              dispatchAddLiquidityState({
+                type: 'UPDATE_VALUE',
+                payload: { value: amountFormatter(outputBalance, decimals, decimals, false), field: OUTPUT }
+              })
+            }
+          }
+        }}
         selectedTokenAddress={outputCurrency}
         onCurrencySelected={outputCurrency => {
           dispatchAddLiquidityState({ type: 'SELECT_CURRENCY', payload: outputCurrency })

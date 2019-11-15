@@ -10,6 +10,7 @@
   "send": "Send",
   "sendAnyway": "Send Anyway",
   "pool": "Pool",
+  "receive": "Receive",
   "betaWarning": "This project is in beta. Use at your own risk.",
   "input": "Input",
   "output": "Output",
@@ -87,5 +88,6 @@
   "Back to swap your tokens": "Back to swap your tokens",
   "noToken": "Can not find tokens",
   "you": "You",
-  "history": "History"
+  "history": "History",
+  "insufficientReserve": "Insufficient Reserve"
 }

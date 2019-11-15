@@ -3,6 +3,7 @@ import { useWeb3Context } from 'web3-react'
 import styled from 'styled-components'
 import { getNetworkName } from '../../utils'
 
+import { ReactComponent as DefaultTokenLogo } from '../../assets/images/default-token-logo.svg'
 import { ReactComponent as EthereumLogo } from '../../assets/images/ethereum-logo.svg'
 
 const TOKEN_ICON_API = (networkName, address) =>
@@ -20,6 +21,11 @@ const StyledEthereumLogo = styled(EthereumLogo)`
   height: ${({ size }) => size};
 `
 
+const StyledDefaultTokenLogo = styled(DefaultTokenLogo)`
+  width: ${({ size }) => size};
+  height: ${({ size }) => size};
+`
+
 export default function TokenLogo({ address, size = '1.5rem', ...rest }) {
   const [error, setError] = useState(false)
   const { networkId } = useWeb3Context()
@@ -32,9 +38,7 @@ export default function TokenLogo({ address, size = '1.5rem', ...rest }) {
     path = TOKEN_ICON_API(networkName.toLowerCase(), address.toLowerCase())
   } else {
     return (
-      <span role="img" aria-label="Thinking">
-        🤔
-      </span>
+      <StyledDefaultTokenLogo size={size} />
     )
   }
 

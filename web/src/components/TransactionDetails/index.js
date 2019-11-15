@@ -356,8 +356,8 @@ export default function TransactionDetails(props) {
     let contextualInfo = ''
     let isError = false
 
-    if (props.inputError || props.independentError) {
-      contextualInfo = props.inputError || props.independentError
+    if (props.inputError || props.outputError || props.independentError) {
+      contextualInfo = props.inputError || props.outputError || props.independentError
       isError = true
     } else if (!props.inputCurrency || !props.outputCurrency) {
       contextualInfo = t('selectTokenCont')

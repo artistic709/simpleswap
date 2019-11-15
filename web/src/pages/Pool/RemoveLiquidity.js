@@ -18,9 +18,10 @@ import { useSimpleSwapContract } from '../../hooks'
 import { useTransactionAdder } from '../../contexts/Transactions'
 import { useTokenDetails } from '../../contexts/Tokens'
 import { useFetchAllBalances } from '../../contexts/AllBalances'
+import { useAddressBalance } from '../../contexts/Balances'
 import { useSimpleSwapReserveOf, useSimpleSwapBalanceOf } from '../../contexts/SimpleSwap'
 import { calculateGasMargin, amountFormatter } from '../../utils'
-import { USDX_ADDRESSES } from '../../constants'
+import { SIMPLESWAP_ADDRESSES, USDX_ADDRESSES } from '../../constants'
 
 // denominated in bips
 const ALLOWED_SLIPPAGE = ethers.utils.bigNumberify(200)
@@ -321,6 +322,25 @@ export default function RemoveLiquidity() {
   const USDXWithdrawnMin = USDXWithdrawn ? calculateSlippageBounds(USDXWithdrawn).minimum : undefined
   const tokenWithdrawnMin = tokenWithdrawn ? calculateSlippageBounds(tokenWithdrawn).minimum : undefined
 
+  // validate real token reserve
+  const [outputError, setOutputError] = useState()
+  const USDXRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], USDX_ADDRESSES[networkId])
+  const tokenRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], outputCurrency)
+  useEffect(() => {
+    if (
+      USDXRealReserve && tokenRealReserve && USDXWithdrawn && tokenWithdrawn &&
+      (USDXRealReserve.lt(USDXWithdrawn) || tokenRealReserve.lt(tokenWithdrawn))
+    ) {
+      setOutputError(t('insufficientReserve'))
+    } else {
+      setOutputError(null)
+    }
+
+    return () => {
+      setOutputError()
+    }
+  }, [USDXRealReserve, USDXWithdrawn, t, tokenRealReserve, tokenWithdrawn])
+
   const fetchPoolTokens = useCallback(() => {
     if (exchange) {
       exchange.totalSupply(ethers.utils.bigNumberify(outputCurrency)).then(totalSupply => {
@@ -411,8 +431,8 @@ export default function RemoveLiquidity() {
     let contextualInfo = ''
     let isError = false
 
-    if (inputError) {
-      contextualInfo = inputError
+    if (inputError || outputError) {
+      contextualInfo = inputError || outputError
       isError = true
     } else if (!outputCurrency || outputCurrency === USDX_ADDRESSES[networkId]) {
       contextualInfo = t('selectTokenCont')
@@ -440,7 +460,7 @@ export default function RemoveLiquidity() {
   }
 
   const isActive = active && account
-  const isValid = !inputError
+  const isValid = !inputError && !outputError
 
   const marketRate = getMarketRate(exchangeUSDXBalance, exchangeTokenBalance, decimals)
 
@@ -451,7 +471,7 @@ export default function RemoveLiquidity() {
       <CurrencyInputPanel
         title={t('poolTokens')}
         allBalances={allBalances}
-        extraText={poolTokenBalance && formatBalance(amountFormatter(poolTokenBalance, 18, 4))}
+        extraText={poolTokenBalance && formatBalance(amountFormatter(poolTokenBalance, 18, 3))}
         extraTextClickHander={() => {
           if (poolTokenBalance) {
             const valueToSet = poolTokenBalance
