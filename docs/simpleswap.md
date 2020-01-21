@@ -430,6 +430,8 @@ function removeLiquidity(address token, uint256 amount, uint256 min_USDX, uint25
 
 ### setFee
 
+Administrator can set fee
+
 ```solidity
 function setFee(uint256 new_fee) external onlyAdmin
 ```
@@ -441,7 +443,7 @@ function setFee(uint256 new_fee) external onlyAdmin
 
 ### transferOut
 
-Transfer tokens out from reserve pool
+Administrator can transfer tokens out from reserve pool
 
 ```solidity
 function transferOut(address token, address to, uint256 amount) public onlyAdmin
@@ -455,7 +457,7 @@ function transferOut(address token, address to, uint256 amount) public onlyAdmin
 
 ### transferIn
 
-Transfer tokens in reserve pool
+Administrator can transfer tokens into reserve pool
 
 ```solidity
 function transferIn(address token, address from, uint256 amount) public onlyAdmin
