@@ -76,7 +76,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     |        Manager Functions          |
     |__________________________________*/
 
-    function setFee(uint256 new_fee) external onlyAdmin{
+    function setFee(uint256 new_fee) external onlyAdmin {
         require(new_fee <= 30000000000000000); //fee must be smaller than 3%
         feeRate = new_fee;
     }
@@ -484,8 +484,8 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
 
     /**
      * @notice Public price function for USDX to Token trades with an exact input.
-     * @param token address of token to buy.
-     * @param usdx_sold Amount of ETH sold.
+     * @param token address of token bought.
+     * @param usdx_sold Amount of USDX sold.
      * @return Amount of Tokens that can be bought with input USDX.
      */
     function getUSDXToTokenInputPrice(address token, uint256 usdx_sold) public view returns (uint256) {
@@ -508,7 +508,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
 
     /**
      * @notice Public price function for Token to USDX trades with an exact input.
-     * @param token address of token to sell.
+     * @param token address of token sold.
      * @param tokens_sold Amount of Tokens sold.
      * @return Amount of USDX that can be bought with input Tokens.
      */
@@ -519,10 +519,10 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     }
 
     /**
-     * @notice Public price function for Token to ETH trades with an exact output.
-     * @param token address of token to sell.
-     * @param usdx_bought Amount of output ETH.
-     * @return Amount of Tokens needed to buy output ETH.
+     * @notice Public price function for Token to USDX trades with an exact output.
+     * @param token address of token sold.
+     * @param usdx_bought Amount of output USDX.
+     * @return Amount of Tokens needed to buy output USDX.
      */
     function getTokenToUSDXOutputPrice(address token, uint256 usdx_bought) public view returns (uint256) {
         require(usdx_bought > 0);
@@ -544,7 +544,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      * @param min_liquidity Minium number of liquidity sender will mint if total liquidity supply is greater than 0.
      * @param max_tokens Maxium number of tokens deposited. Deposits max amount if total liquidity supply is 0.
      * @param deadline Time after which this transaction can no longer be executed.
-     * @return Amoutn of Liquidity minted
+     * @return Amount of Liquidity minted
      */
     function addLiquidity(address token, uint256 reserve_added, uint256 min_liquidity, uint256 max_tokens, uint256 deadline) public payable returns (uint256) {
         require(deadline >= block.timestamp && max_tokens > 0 && reserve_added > 0);
