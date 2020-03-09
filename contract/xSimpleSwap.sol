@@ -112,10 +112,25 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     event RemoveLiquidity(address indexed provider, address indexed token, uint256 coin_amount, uint256 token_amount);
 
     mapping(address => address) public DispatcherOf;
-    mapping(address => uint256) public CoinReserveOf;
+    mapping(address => uint256) public coinReserveShare;
 
+    uint256 public totalCoinStored;
+    uint256 public globalIndex = 1e18;
     uint256 public feeRate = 3000000000000000;
     address public coin = address(0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371);
+
+
+
+    function updateGlobalIndex() public {
+        if(totalCoinStored > 0) {
+            globalIndex = globalIndex.mul(tokenReserveOf(coin)).div(totalCoinStored);
+            totalCoinStored = tokenReserveOf(coin);
+        }
+    }
+
+    function coinReserveOf(address token) public view returns(uint256) {
+        return coinReserveShare[token].mul(globalIndex) / 1e18;
+    }
 
     function tokenReserveOf(address token) public view returns(uint256) {
         uint256 amount = ERC20(token).balanceOf(address(this));
@@ -197,20 +212,19 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         return (numerator / denominator).add(1);
     }
 
-
     function CoinToTokenInput(address token, uint256 Coin_sold, uint256 min_tokens, uint256 deadline, address buyer, address recipient) private returns (uint256) {
         //check if such trading pair exists
         require(totalSupply[uint256(token)] > 0);
         require(deadline >= block.timestamp && Coin_sold > 0 && min_tokens > 0);
-        uint256 tokens_bought = getInputPrice(Coin_sold, CoinReserveOf[token], tokenReserveOf(token));
-        CoinReserveOf[token] = CoinReserveOf[token].add(Coin_sold);
+        updateGlobalIndex();
+        uint256 tokens_bought = getInputPrice(Coin_sold, coinReserveOf(token), tokenReserveOf(token));
+        coinReserveShare[token] = coinReserveShare[token].add(Coin_sold.mul(1e18)/globalIndex);
 
         checkAndWithdraw(token, recipient, tokens_bought);
 
         require(tokens_bought >= min_tokens);
         require(doTransferIn(coin, buyer, Coin_sold));
         
-
         emit TokenPurchase(buyer, token, Coin_sold, tokens_bought);
         return tokens_bought;
     }
@@ -224,7 +238,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      * @param deadline Time after which this transaction can no longer be executed.
      * @return Amount of Tokens bought.
      */
-    function CoinToTokenSwapInput(address token, uint256 Coin_sold,  uint256 min_tokens, uint256 deadline) public returns (uint256) {
+    function CoinToTokenSwapInput(address token, uint256 Coin_sold, uint256 min_tokens, uint256 deadline) public returns (uint256) {
         return CoinToTokenInput(token, Coin_sold, min_tokens, deadline, msg.sender, msg.sender);
     }
 
@@ -247,8 +261,9 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         //check if such trading pair exists
         require(totalSupply[uint256(token)] > 0);
         require(deadline >= block.timestamp && tokens_bought > 0 && max_Coin > 0);
-        uint256 Coin_sold = getOutputPrice(tokens_bought, CoinReserveOf[token], tokenReserveOf(token));
-        CoinReserveOf[token] = CoinReserveOf[token].add(Coin_sold);
+        updateGlobalIndex();
+        uint256 Coin_sold = getOutputPrice(tokens_bought, coinReserveOf(token), tokenReserveOf(token));
+        coinReserveShare[token] = coinReserveShare[token].add(Coin_sold.mul(1e18)/globalIndex);
 
         checkAndWithdraw(token, recipient, tokens_bought);
 
@@ -291,8 +306,9 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         //check if such trading pair exists
         require(totalSupply[uint256(token)] > 0);
         require(deadline >= block.timestamp && tokens_sold > 0 && min_Coin > 0);
-        uint256 Coin_bought = getInputPrice(tokens_sold, tokenReserveOf(token), CoinReserveOf[token]);
-        CoinReserveOf[token] = CoinReserveOf[token].sub(Coin_bought);
+        updateGlobalIndex();
+        uint256 Coin_bought = getInputPrice(tokens_sold, tokenReserveOf(token), coinReserveOf(token));
+        coinReserveShare[token] = coinReserveShare[token].sub(Coin_bought.mul(1e18)/globalIndex);
 
         require(Coin_bought >= min_Coin);
         depositAndTrigger(token, buyer, tokens_sold);
@@ -334,8 +350,9 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         //check if such trading pair exists
         require(totalSupply[uint256(token)] > 0);
         require(deadline >= block.timestamp && Coin_bought > 0);
-        uint256 tokens_sold = getOutputPrice(Coin_bought, tokenReserveOf(token), CoinReserveOf[token]);
-        CoinReserveOf[token] = CoinReserveOf[token].sub(Coin_bought);
+        updateGlobalIndex();
+        uint256 tokens_sold = getOutputPrice(Coin_bought, tokenReserveOf(token), coinReserveOf(token));
+        coinReserveShare[token] = coinReserveShare[token].sub(Coin_bought.mul(1e18)/globalIndex);
 
         require(max_tokens >= tokens_sold);
         depositAndTrigger(token, buyer, tokens_sold);
@@ -388,13 +405,14 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         //check if such trading pair exists
         require(totalSupply[uint256(input_token)] > 0 && totalSupply[uint256(output_token)] > 0);
         require(deadline >= block.timestamp && tokens_sold > 0 && min_tokens_bought > 0);
-        uint256 Coin_bought = getInputPrice(tokens_sold, tokenReserveOf(input_token), CoinReserveOf[input_token]);
-
-        uint256 token_bought = getInputPrice(Coin_bought, CoinReserveOf[output_token], tokenReserveOf(output_token));
+        updateGlobalIndex();
+        uint256 Coin_bought = getInputPrice(tokens_sold, tokenReserveOf(input_token), coinReserveOf(input_token));
+        uint256 token_bought = getInputPrice(Coin_bought, coinReserveOf(output_token), tokenReserveOf(output_token));
 
         // move coin reserve
-        CoinReserveOf[input_token] = CoinReserveOf[input_token].sub(Coin_bought);
-        CoinReserveOf[output_token] = CoinReserveOf[output_token].add(Coin_bought);
+        coinReserveShare[input_token] = coinReserveShare[input_token].sub(Coin_bought.mul(1e18)/globalIndex);
+        coinReserveShare[output_token] = coinReserveShare[output_token].add(Coin_bought.mul(1e18)/globalIndex);
+
 
         checkAndWithdraw(output_token, recipient, token_bought);
         //tokenReserveOf(input_token) = tokenReserveOf(input_token).add(tokens_sold);
@@ -467,14 +485,15 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         //check if such trading pair exists
         require(totalSupply[uint256(input_token)] > 0 && totalSupply[uint256(output_token)] > 0);
         require(deadline >= block.timestamp && tokens_bought > 0);
-        uint256 Coin_bought = getOutputPrice(tokens_bought, CoinReserveOf[output_token], tokenReserveOf(output_token));
+        updateGlobalIndex();
+        uint256 Coin_bought = getOutputPrice(tokens_bought, coinReserveOf(output_token), tokenReserveOf(output_token));
 
         uint256 tokens_sold;
         tokens_sold = tokenToTokenOutputHelper(input_token,Coin_bought);
 
         // move coin reserve
-        CoinReserveOf[input_token] = CoinReserveOf[input_token].sub(Coin_bought);
-        CoinReserveOf[output_token] = CoinReserveOf[output_token].add(Coin_bought);
+        coinReserveShare[input_token] = coinReserveShare[input_token].sub(Coin_bought.mul(1e18)/globalIndex);
+        coinReserveShare[output_token] = coinReserveShare[output_token].add(Coin_bought.mul(1e18)/globalIndex);
 
         checkAndWithdraw(output_token, recipient, tokens_bought);
 
@@ -489,7 +508,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     }
 
     function tokenToTokenOutputHelper(address input_token, uint256 Coin_bought) private view returns(uint256) {
-        uint256 tokens_sold = getOutputPrice(Coin_bought, tokenReserveOf(input_token), CoinReserveOf[input_token]);
+        uint256 tokens_sold = getOutputPrice(Coin_bought, tokenReserveOf(input_token), coinReserveOf(input_token));
         return  tokens_sold;
     }
 
@@ -551,7 +570,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      */
     function getCoinToTokenInputPrice(address token, uint256 coin_sold) public view returns (uint256) {
         require(coin_sold > 0);
-        return getInputPrice(coin_sold, CoinReserveOf[token], tokenReserveOf(token));
+        return getInputPrice(coin_sold, coinReserveOf(token), tokenReserveOf(token));
     }
 
     /**
@@ -562,7 +581,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      */
     function getCoinToTokenOutputPrice(address token, uint256 tokens_bought) public view returns (uint256) {
         require(tokens_bought > 0);
-        return getOutputPrice(tokens_bought, CoinReserveOf[token], tokenReserveOf(token));
+        return getOutputPrice(tokens_bought, coinReserveOf(token), tokenReserveOf(token));
     }
 
     /**
@@ -573,7 +592,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      */
     function getTokenToCoinInputPrice(address token, uint256 tokens_sold) public view returns (uint256) {
         require(tokens_sold > 0);
-        return getInputPrice(tokens_sold, tokenReserveOf(token), CoinReserveOf[token]);
+        return getInputPrice(tokens_sold, tokenReserveOf(token), coinReserveOf(token));
     }
 
     /**
@@ -584,7 +603,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      */
     function getTokenToCoinOutputPrice(address token, uint256 coin_bought) public view returns (uint256) {
         require(coin_bought > 0);
-        return getOutputPrice(coin_bought, tokenReserveOf(token), CoinReserveOf[token]);
+        return getOutputPrice(coin_bought, tokenReserveOf(token), coinReserveOf(token));
     }
 
 
@@ -605,16 +624,18 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
      */
     function addLiquidity(address token, uint256 reserve_added, uint256 min_liquidity, uint256 max_tokens, uint256 deadline) public payable returns (uint256) {
         require(deadline >= block.timestamp && max_tokens > 0 && reserve_added > 0);
+        require(token != coin);
         uint256 total_liquidity = totalSupply[uint256(token)];
 
         if (total_liquidity > 0) {
             require(min_liquidity > 0);
-            uint256 token_amount = (reserve_added.mul(tokenReserveOf(token)) / CoinReserveOf[token]).add(1);
-            uint256 liquidity_minted = reserve_added.mul(total_liquidity) / CoinReserveOf[token];
+            updateGlobalIndex();
+            uint256 token_amount = (reserve_added.mul(tokenReserveOf(token)) / coinReserveOf(token)).add(1);
+            uint256 liquidity_minted = reserve_added.mul(total_liquidity) / coinReserveOf(token);
             require(max_tokens >= token_amount && liquidity_minted >= min_liquidity);
             balances[uint256(token)][msg.sender] = balances[uint256(token)][msg.sender].add(liquidity_minted);
             totalSupply[uint256(token)] = total_liquidity.add(liquidity_minted);
-            CoinReserveOf[token] = CoinReserveOf[token].add(reserve_added);
+            coinReserveShare[token] = coinReserveShare[token].add(reserve_added.mul(1e18)/globalIndex);
 
             depositAndTrigger(token, msg.sender, token_amount);
             require(doTransferIn(coin, msg.sender, reserve_added));
@@ -630,7 +651,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
 
             totalSupply[uint256(token)] = initial_liquidity;
             balances[uint256(token)][msg.sender] = initial_liquidity;
-            CoinReserveOf[token] = CoinReserveOf[token].add(reserve_added);
+            coinReserveShare[token] = coinReserveShare[token].add(reserve_added.mul(1e18)/globalIndex);
 
             depositAndTrigger(token, msg.sender, token_amount);
             require(doTransferIn(coin, msg.sender, reserve_added));
@@ -655,13 +676,14 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         require(amount > 0 && deadline >= block.timestamp && min_Coin > 0 && min_tokens > 0);
         uint256 total_liquidity = totalSupply[uint256(token)];
         require(total_liquidity > 0);
-        uint256 Coin_amount = amount.mul(CoinReserveOf[token]) / total_liquidity;
+        updateGlobalIndex();
+        uint256 Coin_amount = amount.mul(coinReserveOf(token)) / total_liquidity;
         uint256 token_amount = amount.mul(tokenReserveOf(token)) / total_liquidity;
         require(Coin_amount >= min_Coin && token_amount >= min_tokens);
 
         balances[uint256(token)][msg.sender] = balances[uint256(token)][msg.sender].sub(amount);
         totalSupply[uint256(token)] = total_liquidity.sub(amount);
-        CoinReserveOf[token] = CoinReserveOf[token].sub(Coin_amount);
+        coinReserveShare[token] = coinReserveShare[token].sub(Coin_amount.mul(1e18)/globalIndex);
 
         checkAndWithdraw(token, msg.sender, token_amount);
 
