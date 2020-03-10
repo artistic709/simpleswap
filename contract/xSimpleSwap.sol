@@ -140,6 +140,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         if(DispatcherOf[token] != address(0)) {
             amount = amount.add(IDispatcher(DispatcherOf[token]).getBalance());
         }
+        return amount;
     }
 
     function depositAndTrigger(address token, address from, uint256 amount) internal {
