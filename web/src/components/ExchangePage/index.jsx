@@ -2,7 +2,6 @@ import React, { useState, useReducer, useEffect } from 'react'
 import ReactGA from 'react-ga'
 
 import { useTranslation } from 'react-i18next'
-import { useWeb3Context } from 'web3-react'
 
 import { ethers } from 'ethers'
 import styled from 'styled-components'
@@ -15,7 +14,7 @@ import TransactionDetails from '../TransactionDetails'
 import TransactionHistory from '../TransactionHistory'
 import ArrowSwap from '../../assets/svg/SVGArrowSwap'
 import { amountFormatter, calculateGasMargin } from '../../utils'
-import { useSimpleSwapContract } from '../../hooks'
+import { useWeb3React, useSimpleSwapContract } from '../../hooks'
 import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useTransactionAdder, useHasPendingTransaction } from '../../contexts/Transactions'
 import { useAddressBalance } from '../../contexts/Balances'
@@ -89,12 +88,12 @@ function calculateSlippageBounds(value, token = false, tokenAllowedSlippage, all
   }
 }
 
-function getSwapType(inputCurrency, outputCurrency, networkId) {
+function getSwapType(inputCurrency, outputCurrency, chainId) {
   if (!inputCurrency || !outputCurrency) {
     return null
-  } else if (inputCurrency === USDX_ADDRESSES[networkId]) {
+  } else if (inputCurrency === USDX_ADDRESSES[chainId]) {
     return USDX_TO_TOKEN
-  } else if (outputCurrency === USDX_ADDRESSES[networkId]) {
+  } else if (outputCurrency === USDX_ADDRESSES[chainId]) {
     return TOKEN_TO_USDX
   } else {
     return TOKEN_TO_TOKEN
@@ -234,7 +233,7 @@ function getMarketRate(
 
 export default function ExchangePage({ initialCurrency }) {
   const { t } = useTranslation()
-  const { account, networkId } = useWeb3Context()
+  const { account, chainId } = useWeb3React()
 
   const addTransaction = useTransactionAdder()
   const hasPendingTransaction = useHasPendingTransaction()
@@ -255,7 +254,7 @@ export default function ExchangePage({ initialCurrency }) {
   const allTokens = useAllTokenDetails()
 
   const initialCurrencies = {
-    inputCurrency: USDX_ADDRESSES[networkId],
+    inputCurrency: USDX_ADDRESSES[chainId],
     outputCurrency: initialCurrency || Object.keys(allTokens)[0]
   }
 
@@ -268,7 +267,7 @@ export default function ExchangePage({ initialCurrency }) {
   const [recipientError, setRecipientError] = useState()
 
   // get swap type from the currency types
-  const swapType = getSwapType(inputCurrency, outputCurrency, networkId)
+  const swapType = getSwapType(inputCurrency, outputCurrency, chainId)
 
   // get decimals and exchange address for each of the currency types
   const { symbol: inputSymbol, decimals: inputDecimals } = useTokenDetails(
@@ -281,12 +280,12 @@ export default function ExchangePage({ initialCurrency }) {
   const contract = useSimpleSwapContract()
 
   // get input allowance
-  const inputAllowance = useAddressAllowance(account, inputCurrency, SIMPLESWAP_ADDRESSES[networkId])
+  const inputAllowance = useAddressAllowance(account, inputCurrency, SIMPLESWAP_ADDRESSES[chainId])
 
   // fetch reserves for each of the currency types
   const { reserveUSDX: inputReserveUSDX, reserveToken: inputReserveToken } = useSimpleSwapReserveOf(inputCurrency)
   const { reserveUSDX: outputReserveUSDX, reserveToken: outputReserveToken } = useSimpleSwapReserveOf(outputCurrency)
-  const realTokenReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], outputCurrency)
+  const realTokenReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[chainId], outputCurrency)
 
   // get balances for each of the currency types
   const inputBalance = useAddressBalance(account, inputCurrency)

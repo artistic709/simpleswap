@@ -2,7 +2,6 @@ import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ethers } from 'ethers'
 import { BigNumber } from '@uniswap/sdk'
-import { useWeb3Context } from 'web3-react'
 import styled from 'styled-components'
 import escapeStringRegex from 'escape-string-regexp'
 import { darken } from 'polished'
@@ -11,7 +10,7 @@ import '@reach/tooltip/styles.css'
 import { isMobile } from 'react-device-detect'
 
 import { Spinner } from '../../theme'
-import { useTokenContract } from '../../hooks'
+import { useWeb3React, useTokenContract } from '../../hooks'
 import { isAddress, calculateGasMargin, formatTokenBalance, formatEthBalance } from '../../utils'
 import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
 import { ReactComponent as Done } from '../../assets/images/done.svg'
@@ -366,11 +365,11 @@ export default function CurrencyInputPanel({
 }) {
   const { t } = useTranslation()
 
-  const { networkId } = useWeb3Context()
+  const { chainId } = useWeb3React()
   
   const tokenContract = useTokenContract(selectedTokenAddress)
   
-  const selectedTokenExchangeAddress = SIMPLESWAP_ADDRESSES[networkId]
+  const selectedTokenExchangeAddress = SIMPLESWAP_ADDRESSES[chainId]
   
   const pendingApproval = usePendingApproval(selectedTokenAddress)
   

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useReducer, useMemo, useCallback } from 'react'
 import { ethers } from 'ethers'
 import { getTokenReserves, getMarketDetails, BigNumber } from '@uniswap/sdk'
-import { useWeb3Context } from 'web3-react'
 
+import { useWeb3React } from '../hooks'
 import { safeAccess, isAddress, getEtherBalance, getTokenBalance } from '../utils'
 import { useAllTokenDetails } from './Tokens'
 
@@ -20,13 +20,13 @@ function useAllBalancesContext() {
 function reducer(state, { type, payload }) {
   switch (type) {
     case UPDATE: {
-      const { allBalanceData, networkId, address } = payload
+      const { allBalanceData, chainId, address } = payload
       return {
         ...state,
-        [networkId]: {
-          ...(safeAccess(state, [networkId]) || {}),
+        [chainId]: {
+          ...(safeAccess(state, [chainId]) || {}),
           [address]: {
-            ...(safeAccess(state, [networkId, address]) || {}),
+            ...(safeAccess(state, [chainId, address]) || {}),
             allBalanceData
           }
         }
@@ -41,8 +41,8 @@ function reducer(state, { type, payload }) {
 export default function Provider({ children }) {
   const [state, dispatch] = useReducer(reducer, {})
 
-  const update = useCallback((allBalanceData, networkId, address) => {
-    dispatch({ type: UPDATE, payload: { allBalanceData, networkId, address } })
+  const update = useCallback((allBalanceData, chainId, address) => {
+    dispatch({ type: UPDATE, payload: { allBalanceData, chainId, address } })
   }, [])
 
   return (
@@ -53,13 +53,13 @@ export default function Provider({ children }) {
 }
 
 export function useFetchAllBalances() {
-  const { account, networkId, library } = useWeb3Context()
+  const { account, chainId, library } = useWeb3React()
 
   const allTokens = useAllTokenDetails()
 
   const [state, { update }] = useAllBalancesContext()
 
-  const { allBalanceData } = safeAccess(state, [networkId, account]) || {}
+  const { allBalanceData } = safeAccess(state, [chainId, account]) || {}
 
   const getData = async () => {
     if (!!library && !!account) {
@@ -92,7 +92,7 @@ export function useFetchAllBalances() {
           }
         })
       )
-      update(newBalances, networkId, account)
+      update(newBalances, chainId, account)
     }
   }
 

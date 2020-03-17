@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import styled from 'styled-components'
 import { useTranslation } from 'react-i18next'
-import { useWeb3Context, Connectors } from 'web3-react'
-import { ethers } from 'ethers'
+import { useWeb3React, UnsupportedChainIdError } from '@web3-react/core'
+import { injected } from '../../connectors'
 import { shortenAddress, getNetworkName } from '../../utils'
 import { useENSName } from '../../hooks'
 import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
-
-const { Connector } = Connectors
 
 const Web3StatusWrapper = styled.div`
   ${({ theme }) => theme.flexColumnNoWrap}
@@ -79,8 +77,8 @@ const Web3NetworkIndicator = styled.div`
   height: 0.5rem;
   margin-right: 0.5rem;
   border-radius: 0.25rem;
-  background-color: ${({ theme, networkId }) => {
-    if (networkId === 1) {
+  background-color: ${({ theme, chainId }) => {
+    if (chainId === 1) {
       return theme.emerald
     } else {
       return theme.seaBuckthorn
@@ -184,84 +182,25 @@ const ConnectButton = styled.button`
 
 export default function Web3Status() {
   const { t } = useTranslation()
-  const { active, networkId, account, connectorName, setConnector } = useWeb3Context()
+  const { chainId, account, activate, deactivate, connector, error } = useWeb3React()
 
   const ENSName = useENSName(account)
 
-  const [error, setError] = useState()
-
-  // janky logic to detect log{ins,outs}...
-  useEffect(() => {
-    // if the injected connector is not active...
-    const { ethereum } = window
-    if (connectorName !== 'Injected') {
-      if (connectorName === 'Network' && ethereum && ethereum.on && ethereum.removeListener) {
-        function tryToActivateInjected() {
-          const library = new ethers.providers.Web3Provider(window.ethereum)
-          // if calling enable won't pop an approve modal, then try to activate injected...
-          library.listAccounts().then(accounts => {
-            if (accounts.length >= 1) {
-              setConnector('Injected', { suppressAndThrowErrors: true })
-                .then(() => {
-                  setError()
-                })
-                .catch(error => {
-                  // ...and if the error is that they're on the wrong network, display it, otherwise eat it
-                  if (error.code === Connector.errorCodes.UNSUPPORTED_NETWORK) {
-                    setError(error)
-                  }
-                })
-            }
-          })
-        }
-
-        ethereum.on('networkChanged', tryToActivateInjected)
-        ethereum.on('accountsChanged', tryToActivateInjected)
-
-        return () => {
-          if (ethereum.removeListener) {
-            ethereum.removeListener('networkChanged', tryToActivateInjected)
-            ethereum.removeListener('accountsChanged', tryToActivateInjected)
-          }
-        }
-      }
-    } else {
-      // ...poll to check the accounts array, and if it's ever 0 i.e. the user logged out, update the connector
-      if (ethereum) {
-        const accountPoll = setInterval(() => {
-          const library = new ethers.providers.Web3Provider(ethereum)
-          Promise.all([library.listAccounts(), library.getNetwork()])
-            .then(([accounts, network]) => {
-              if (accounts.length === 0 || network.chainId !== networkId) {
-                setConnector('Network')
-              }
-            })
-        }, 750)
-
-        return () => {
-          clearInterval(accountPoll)
-        }
-      }
-    }
-  }, [connectorName, setConnector, setError, networkId])
-
   function onConnect() {
-    setConnector('Injected', { suppressAndThrowErrors: true }).catch(err => {
-      if (err.code === Connector.errorCodes.UNSUPPORTED_NETWORK) {
-        setError(err)
+    activate(injected, undefined, true).catch(err => {
+      if (err instanceof UnsupportedChainIdError) {
+        activate(injected)
       }
     })
   }
 
   function onLogout() {
-    setConnector('Network').catch(err => {
-      setError(err)
-    })
+    deactivate()
   }
 
   function getInjectedNetworkName() {
-    if (connectorName !== 'Injected') return getNetworkName()
-    return getNetworkName(networkId)
+    if (connector !== injected) return getNetworkName()
+    return getNetworkName(chainId)
   }
 
   function getWeb3Account() {
@@ -270,31 +209,31 @@ export default function Web3Status() {
       : t('Connect to MetaMask')
   }
 
-  if (!active) {
-    return null
+  if (error) {
+    return (
+      <Web3StatusWrapper>
+        <Web3NetworkStatus>
+          <Web3NetworkIndicator chainId={chainId}/>
+          <SubText>Wrong Network</SubText>
+        </Web3NetworkStatus>
+        <Web3ErrorMessage>
+          <span>Please connect to Rinkeby</span>
+        </Web3ErrorMessage>
+      </Web3StatusWrapper>
+    )
   } else if (!account) {
     return <ConnectButton onClick={onConnect}>Connect</ConnectButton>
   } else {
     return (
       <Web3StatusWrapper>
         <Web3NetworkStatus>
-          <Web3NetworkIndicator networkId={networkId}/>
-          <SubText>{error ? 'Wrong Network' : getInjectedNetworkName(networkId)}</SubText>
+          <Web3NetworkIndicator chainId={chainId}/>
+          <SubText>{error ? 'Wrong Network' : getInjectedNetworkName(chainId)}</SubText>
         </Web3NetworkStatus>
-        {
-          error 
-            ? (
-              <Web3ErrorMessage>
-                <span>Please connect to Rinkeby</span>
-              </Web3ErrorMessage>
-            )
-            : (
-              <Web3AccountStatus>
-                <Text>{getWeb3Account()}</Text>
-                <StyledArrowDropDown />
-              </Web3AccountStatus>
-            )
-        }
+        <Web3AccountStatus>
+          <Text>{getWeb3Account()}</Text>
+          <StyledArrowDropDown />
+        </Web3AccountStatus>
         <div className="web3-button-wrapper">
           <span><em /></span>
           <Button onClick={onLogout}>Logout</Button>

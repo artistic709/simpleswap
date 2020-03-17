@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useMemo, useCallback, useEffect } from 'react'
-import { useWeb3Context } from 'web3-react'
 
+import { useWeb3React } from '../hooks'
 import { safeAccess } from '../utils'
 import { useBlockNumber } from './Application'
 
@@ -23,16 +23,16 @@ export function useTransactionsContext() {
 function reducer(state, { type, payload }) {
   switch (type) {
     case ADD: {
-      const { networkId, hash, response } = payload
+      const { chainId, hash, response } = payload
 
-      if (safeAccess(state, [networkId, hash]) !== null) {
+      if (safeAccess(state, [chainId, hash]) !== null) {
         throw Error('Attempted to add existing transaction.')
       }
 
       return {
         ...state,
-        [networkId]: {
-          ...(safeAccess(state, [networkId]) || {}),
+        [chainId]: {
+          ...(safeAccess(state, [chainId]) || {}),
           [hash]: {
             [RESPONSE]: response
           }
@@ -40,36 +40,36 @@ function reducer(state, { type, payload }) {
       }
     }
     case CHECK: {
-      const { networkId, hash, blockNumber } = payload
+      const { chainId, hash, blockNumber } = payload
 
-      if (safeAccess(state, [networkId, hash]) === null) {
+      if (safeAccess(state, [chainId, hash]) === null) {
         throw Error('Attempted to check non-existent transaction.')
       }
 
       return {
         ...state,
-        [networkId]: {
-          ...(safeAccess(state, [networkId]) || {}),
+        [chainId]: {
+          ...(safeAccess(state, [chainId]) || {}),
           [hash]: {
-            ...(safeAccess(state, [networkId, hash]) || {}),
+            ...(safeAccess(state, [chainId, hash]) || {}),
             [BLOCK_NUMBER_CHECKED]: blockNumber
           }
         }
       }
     }
     case FINALIZE: {
-      const { networkId, hash, receipt, timestamp } = payload
+      const { chainId, hash, receipt, timestamp } = payload
 
-      if (safeAccess(state, [networkId, hash]) === null) {
+      if (safeAccess(state, [chainId, hash]) === null) {
         throw Error('Attempted to finalize non-existent transaction.')
       }
 
       return {
         ...state,
-        [networkId]: {
-          ...(safeAccess(state, [networkId]) || {}),
+        [chainId]: {
+          ...(safeAccess(state, [chainId]) || {}),
           [hash]: {
-            ...(safeAccess(state, [networkId, hash]) || {}),
+            ...(safeAccess(state, [chainId, hash]) || {}),
             [RECEIPT]: receipt,
             [TIMESTAMP]: timestamp
           }
@@ -85,14 +85,14 @@ function reducer(state, { type, payload }) {
 export default function Provider({ children }) {
   const [state, dispatch] = useReducer(reducer, {})
 
-  const add = useCallback((networkId, hash, response) => {
-    dispatch({ type: ADD, payload: { networkId, hash, response } })
+  const add = useCallback((chainId, hash, response) => {
+    dispatch({ type: ADD, payload: { chainId, hash, response } })
   }, [])
-  const check = useCallback((networkId, hash, blockNumber) => {
-    dispatch({ type: CHECK, payload: { networkId, hash, blockNumber } })
+  const check = useCallback((chainId, hash, blockNumber) => {
+    dispatch({ type: CHECK, payload: { chainId, hash, blockNumber } })
   }, [])
-  const finalize = useCallback((networkId, hash, receipt, timestamp) => {
-    dispatch({ type: FINALIZE, payload: { networkId, hash, receipt, timestamp } })
+  const finalize = useCallback((chainId, hash, receipt, timestamp) => {
+    dispatch({ type: FINALIZE, payload: { chainId, hash, receipt, timestamp } })
   }, [])
 
   return (
@@ -105,15 +105,15 @@ export default function Provider({ children }) {
 }
 
 export function Updater() {
-  const { networkId, library } = useWeb3Context()
+  const { chainId, library } = useWeb3React()
 
   const globalBlockNumber = useBlockNumber()
 
   const [state, { check, finalize }] = useTransactionsContext()
-  const allTransactions = safeAccess(state, [networkId]) || {}
+  const allTransactions = safeAccess(state, [chainId]) || {}
 
   useEffect(() => {
-    if ((networkId || networkId === 0) && library) {
+    if ((chainId || chainId === 0) && library) {
       let stale = false
       Object.keys(allTransactions)
         .filter(
@@ -125,16 +125,16 @@ export function Updater() {
             .then(receipt => {
               if (!stale) {
                 if (!receipt) {
-                  check(networkId, hash, globalBlockNumber)
+                  check(chainId, hash, globalBlockNumber)
                 } else {
                   library.getBlock(receipt.blockNumber).then(block => {
-                    finalize(networkId, hash, receipt, block.timestamp)
+                    finalize(chainId, hash, receipt, block.timestamp)
                   })
                 }
               }
             })
             .catch(() => {
-              check(networkId, hash, globalBlockNumber)
+              check(chainId, hash, globalBlockNumber)
             })
         })
 
@@ -142,20 +142,20 @@ export function Updater() {
         stale = true
       }
     }
-  }, [networkId, library, allTransactions, globalBlockNumber, check, finalize])
+  }, [chainId, library, allTransactions, globalBlockNumber, check, finalize])
 
   return null
 }
 
 export function useTransactionAdder() {
-  const { networkId } = useWeb3Context()
+  const { chainId } = useWeb3React()
 
   const [, { add }] = useTransactionsContext()
 
   return useCallback(
     (response, customData = {}) => {
-      if (!(networkId || networkId === 0)) {
-        throw Error(`Invalid networkId '${networkId}`)
+      if (!(chainId || chainId === 0)) {
+        throw Error(`Invalid chainId '${chainId}`)
       }
 
       const hash = safeAccess(response, ['hash'])
@@ -163,18 +163,18 @@ export function useTransactionAdder() {
       if (!hash) {
         throw Error('No transaction hash found.')
       }
-      add(networkId, hash, { ...response, [CUSTOM_DATA]: customData })
+      add(chainId, hash, { ...response, [CUSTOM_DATA]: customData })
     },
-    [networkId, add]
+    [chainId, add]
   )
 }
 
 export function useAllTransactions() {
-  const { networkId } = useWeb3Context()
+  const { chainId } = useWeb3React()
 
   const [state] = useTransactionsContext()
 
-  return safeAccess(state, [networkId]) || {}
+  return safeAccess(state, [chainId]) || {}
 }
 
 export function usePendingApproval(tokenAddress) {

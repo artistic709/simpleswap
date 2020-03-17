@@ -7,3 +7,5 @@ export const USDX_ADDRESSES = {
   1: '0xeb269732ab75A6fD61Ea60b06fE994cD32a83549',
   4: '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371'
 }
+
+export const NetworkContextName = 'NETWORK'

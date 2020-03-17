@@ -1,7 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import ReactGA from 'react-ga'
-import Web3Provider from 'web3-react'
+import { Web3ReactProvider, createWeb3ReactRoot } from '@web3-react/core'
+import { ethers } from 'ethers'
+import { NetworkContextName } from './constants'
 
 import ThemeProvider, { GlobalStyle } from './theme'
 import LocalStorageContextProvider, { Updater as LocalStorageContextUpdater } from './contexts/LocalStorage'
@@ -14,10 +16,16 @@ import AllBalancesContextProvider from './contexts/AllBalances'
 import SimpleSwapContextProvider from './contexts/SimpleSwap'
 
 import App from './pages/App'
-import NetworkOnlyConnector from './NetworkOnlyConnector'
-import InjectedConnector from './InjectedConnector'
 
 import './i18n'
+
+const Web3ProviderNetwork = createWeb3ReactRoot(NetworkContextName)
+
+function getLibrary(provider) {
+  const library = new ethers.providers.Web3Provider(provider)
+  library.pollingInterval = 10000
+  return library
+}
 
 if (process.env.NODE_ENV === 'production') {
   // turn off GA in production
@@ -26,14 +34,6 @@ if (process.env.NODE_ENV === 'production') {
   ReactGA.initialize('test', { testMode: true })
 }
 ReactGA.pageview(window.location.pathname + window.location.search)
-
-const Network = new NetworkOnlyConnector({
-  providerURL: process.env.REACT_APP_NETWORK_URL || ''
-})
-const Injected = new InjectedConnector({
-  supportedNetworks: process.env.REACT_APP_NETWORK_IDS.split(',').map(id => Number(id))
-})
-const connectors = { Injected, Network }
 
 function ContextProviders({ children }) {
   return (
@@ -68,16 +68,18 @@ function Updaters() {
 }
 
 ReactDOM.render(
-  <Web3Provider connectors={connectors} libraryName="ethers.js">
-    <ContextProviders>
-      <Updaters />
-      <ThemeProvider>
-        <>
-          <GlobalStyle />
-          <App />
-        </>
-      </ThemeProvider>
-    </ContextProviders>
-  </Web3Provider>,
+  <Web3ReactProvider getLibrary={getLibrary}>
+    <Web3ProviderNetwork getLibrary={getLibrary}>
+      <ContextProviders>
+        <Updaters />
+        <ThemeProvider>
+          <>
+            <GlobalStyle />
+            <App />
+          </>
+        </ThemeProvider>
+      </ContextProviders>
+    </Web3ProviderNetwork>
+  </Web3ReactProvider>,
   document.getElementById('root')
 )

@@ -1,11 +1,11 @@
 import React from 'react'
 import styled, { css } from 'styled-components'
-import { useWeb3Context } from 'web3-react'
 
 import Transaction from './Transaction'
 import Copy from './Copy'
 import Modal from '../Modal'
 
+import { useWeb3React } from '../../hooks'
 import { getEtherscanLink, amountFormatter } from '../../utils'
 import { Link } from '../../theme'
 import { useAddressBalance } from '../../contexts/Balances'
@@ -146,9 +146,9 @@ const StyledLink = styled(Link)`
 // }
 
 export default function WalletModal({ isOpen, error, onDismiss, pendingTransactions, confirmedTransactions, ENSName }) {
-  const { account, networkId } = useWeb3Context()
+  const { account, chainId } = useWeb3React()
 
-  const USDXBalance = useAddressBalance(account, USDX_ADDRESSES[networkId])
+  const USDXBalance = useAddressBalance(account, USDX_ADDRESSES[chainId])
   const ETHBalance = useAddressBalance(account, 'ETH')
 
   function renderTransactions(transactions, pending) {
@@ -190,7 +190,7 @@ export default function WalletModal({ isOpen, error, onDismiss, pendingTransacti
               <h5>Your Account</h5>
               {ENSName && (
                 <AccountControl hasENS={!!ENSName} isENS={true}>
-                  <StyledLink hasENS={!!ENSName} isENS={true} href={getEtherscanLink(networkId, ENSName, 'address')}>
+                  <StyledLink hasENS={!!ENSName} isENS={true} href={getEtherscanLink(chainId, ENSName, 'address')}>
                     {ENSName} ↗{' '}
                   </StyledLink>
 
@@ -199,7 +199,7 @@ export default function WalletModal({ isOpen, error, onDismiss, pendingTransacti
               )}
 
               <AccountControl hasENS={!!ENSName} isENS={false}>
-                <StyledLink hasENS={!!ENSName} isENS={false} href={getEtherscanLink(networkId, account, 'address')}>
+                <StyledLink hasENS={!!ENSName} isENS={false} href={getEtherscanLink(chainId, account, 'address')}>
                   {account} ↗{' '}
                 </StyledLink>
 

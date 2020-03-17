@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactGA from 'react-ga'
-import { useWeb3Context } from 'web3-react'
 import { ethers } from 'ethers'
 import styled from 'styled-components'
 import { transparentize } from 'polished'
@@ -14,7 +13,7 @@ import TransactionHistory from '../../components/TransactionHistory'
 import ArrowDown from '../../assets/svg/SVGArrowDown'
 import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
-import { useSimpleSwapContract } from '../../hooks'
+import { useWeb3React, useSimpleSwapContract } from '../../hooks'
 import { useTransactionAdder } from '../../contexts/Transactions'
 import { useTokenDetails } from '../../contexts/Tokens'
 import { useFetchAllBalances } from '../../contexts/AllBalances'
@@ -239,7 +238,7 @@ function calculateSlippageBounds(value) {
 }
 
 export default function RemoveLiquidity() {
-  const { library, account, active, networkId } = useWeb3Context()
+  const { library, account, active, chainId } = useWeb3React()
   const { t } = useTranslation()
 
   const addTransaction = useTransactionAdder()
@@ -324,8 +323,8 @@ export default function RemoveLiquidity() {
 
   // validate real token reserve
   const [outputError, setOutputError] = useState()
-  const USDXRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], USDX_ADDRESSES[networkId])
-  const tokenRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], outputCurrency)
+  const USDXRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[chainId], USDX_ADDRESSES[chainId])
+  const tokenRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[chainId], outputCurrency)
   useEffect(() => {
     if (
       USDXRealReserve && tokenRealReserve && USDXWithdrawn && tokenWithdrawn &&
@@ -434,7 +433,7 @@ export default function RemoveLiquidity() {
     if (inputError || outputError) {
       contextualInfo = inputError || outputError
       isError = true
-    } else if (!outputCurrency || outputCurrency === USDX_ADDRESSES[networkId]) {
+    } else if (!outputCurrency || outputCurrency === USDX_ADDRESSES[chainId]) {
       contextualInfo = t('selectTokenCont')
     } else if (!valueParsed) {
       contextualInfo = t('enterValueCont')

@@ -1,6 +1,5 @@
 import React, { useReducer, useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useWeb3Context } from 'web3-react'
 import { ethers } from 'ethers'
 import ReactGA from 'react-ga'
 import styled from 'styled-components'
@@ -14,7 +13,7 @@ import TransactionHistory from '../../components/TransactionHistory'
 import { ReactComponent as Plus } from '../../assets/images/plus-blue.svg'
 import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
-import { useSimpleSwapContract } from '../../hooks'
+import { useWeb3React, useSimpleSwapContract } from '../../hooks'
 import { amountFormatter, calculateGasMargin } from '../../utils'
 import { useTransactionAdder } from '../../contexts/Transactions'
 import { useTokenDetails } from '../../contexts/Tokens'
@@ -287,11 +286,11 @@ function getMarketRate(reserveUSDX, reserveToken, decimals, invert = false) {
 
 export default function AddLiquidity() {
   const { t } = useTranslation()
-  const { library, active, account, networkId } = useWeb3Context()
+  const { library, active, account, chainId } = useWeb3React()
 
   const [addLiquidityState, dispatchAddLiquidityState] = useReducer(addLiquidityStateReducer, initialAddLiquidityState)
   const { inputValue, outputValue, lastEditedField, outputCurrency } = addLiquidityState
-  const inputCurrency = USDX_ADDRESSES[networkId]
+  const inputCurrency = USDX_ADDRESSES[chainId]
 
   const [inputValueParsed, setInputValueParsed] = useState()
   const [outputValueParsed, setOutputValueParsed] = useState()
@@ -636,7 +635,7 @@ export default function AddLiquidity() {
     }
   }, [inputValueParsed, inputBalance, outputValueMax, outputBalance, t])
 
-  const USDXAllowance = useAddressAllowance(account, USDX_ADDRESSES[networkId], SIMPLESWAP_ADDRESSES[networkId])
+  const USDXAllowance = useAddressAllowance(account, USDX_ADDRESSES[chainId], SIMPLESWAP_ADDRESSES[chainId])
   const [showUSDXUnlock, setShowUSDXUnlock] = useState(false)
   useEffect(() => {
     if (inputValueParsed && USDXAllowance) {
@@ -651,7 +650,7 @@ export default function AddLiquidity() {
     }
   }, [inputValueParsed, USDXAllowance, t])
 
-  const allowance = useAddressAllowance(account, outputCurrency, SIMPLESWAP_ADDRESSES[networkId])
+  const allowance = useAddressAllowance(account, outputCurrency, SIMPLESWAP_ADDRESSES[chainId])
   const [showUnlock, setShowUnlock] = useState(false)
   useEffect(() => {
     if (outputValueParsed && allowance) {
@@ -702,7 +701,7 @@ export default function AddLiquidity() {
         onValueChange={inputValue => {
           dispatchAddLiquidityState({ type: 'UPDATE_VALUE', payload: { value: inputValue, field: INPUT } })
         }}
-        selectedTokenAddress={USDX_ADDRESSES[networkId]}
+        selectedTokenAddress={USDX_ADDRESSES[chainId]}
         value={inputValue}
         showUnlock={showUSDXUnlock}
         errorMessage={inputError}
