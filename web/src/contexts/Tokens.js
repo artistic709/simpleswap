@@ -53,6 +53,11 @@ const INITIAL_TOKENS_CONTEXT = {
       [SYMBOL]: 'USDx',
       [DECIMALS]: 18
     },
+    '0xe668af4AD014334670c029e59c6Ff57eBBDe30f6': {
+      [NAME]: 'Tether USD',
+      [SYMBOL]: 'USDT',
+      [DECIMALS]: 6
+    }
   }
 }
 

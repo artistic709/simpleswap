@@ -2,6 +2,8 @@ import React from 'react'
 import styled from 'styled-components'
 
 const FooterContainer = styled.div`
+  position: fixed;
+  bottom: 0;
   padding: 2.5rem;
   display: none;
   align-items: center;

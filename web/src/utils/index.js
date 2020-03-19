@@ -2,6 +2,7 @@ import { ethers } from 'ethers'
 import BigNumber from 'bignumber.js'
 
 import SIMPLESWAP_ABI from '../constants/abis/simpleswap'
+import EXCHANGE_ABI from '../constants/abis/exchange.json'
 import ERC20_ABI from '../constants/abis/erc20'
 import ERC20_BYTES32_ABI from '../constants/abis/erc20_bytes32'
 import { SIMPLESWAP_ADDRESSES } from '../constants'
@@ -135,6 +136,25 @@ export function getSimpleSwapBalanceOf(ownerAddress, tokenAddress, networkId, li
   }
 
   return getSimpleSwapContract(networkId, library, account).balanceOf(ownerAddress, ethers.utils.bigNumberify(tokenAddress))
+}
+
+// get exchange reserves
+export async function getExchangeReserves(exchangeAddress, tokenAddress, library) {
+  if (!isAddress(exchangeAddress) || !isAddress(tokenAddress)) {
+    throw Error(`Invalid 'exchangeAddress' parameter: ${exchangeAddress} or invalid 'tokenAddress' parameter: ${tokenAddress}`)
+  }
+
+  const exchangeContract = getContract(exchangeAddress, EXCHANGE_ABI, library)
+
+  try {
+    const [coinReserve, tokenReserve] = await Promise.all([
+      exchangeContract.coinReserveOf(tokenAddress),
+      exchangeContract.tokenReserveOf(tokenAddress),
+    ])
+    return { coinReserve, tokenReserve }
+  } catch (err) {
+    throw Error(`Cannot get exchange reserves: ${err}`)
+  }
 }
 
 // get token name
