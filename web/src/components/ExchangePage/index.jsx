@@ -97,11 +97,11 @@ function calculateSlippageBounds(value, token = false, tokenAllowedSlippage, all
 }
 
 // TODO: How if swap type if  
-function getSwapType(inputCurrency, outputCurrency, chainId, exchange) {
-  if (!inputCurrency || !outputCurrency || !exchange) {
+function getSwapType(inputCurrency, outputCurrency, chainId, exchangeAddress) {
+  if (!inputCurrency || !outputCurrency || !exchangeAddress) {
     return null
   } 
-  if (exchange === USDXSWAP_ADDRESSES[chainId]) {
+  if (exchangeAddress === USDXSWAP_ADDRESSES[chainId]) {
     if (inputCurrency === USDX_ADDRESSES[chainId]) {
       return COIN_TO_TOKEN
     } else if (outputCurrency === USDX_ADDRESSES[chainId]) {
@@ -109,7 +109,7 @@ function getSwapType(inputCurrency, outputCurrency, chainId, exchange) {
     } else {
       return TOKEN_TO_TOKEN
     }
-  } else if (exchange === USDTSWAP_ADDRESSES[chainId]) {
+  } else if (exchangeAddress === USDTSWAP_ADDRESSES[chainId]) {
     if (inputCurrency === USDT_ADDRESSES[chainId]) {
       return COIN_TO_TOKEN
     } else if (outputCurrency === USDT_ADDRESSES[chainId]) {
@@ -343,19 +343,19 @@ export default function ExchangePage({ initialCurrency }) {
 
   const usdxSwapContract = useContract(USDXSWAP_ADDRESSES[chainId], EXCHANGE_ABI)
   const usdtSwapContract = useContract(USDTSWAP_ADDRESSES[chainId], EXCHANGE_ABI)
-  const [exchange, setExchange] = useState()
+  const [exchangeAddress, setExchangeAddress] = useState()
   const contract = useMemo(() => {
-    if (exchange === USDXSWAP_ADDRESSES[chainId]) {
+    if (exchangeAddress === USDXSWAP_ADDRESSES[chainId]) {
       return usdxSwapContract
     } else {
       return usdtSwapContract
     }
-  }, [chainId, exchange, usdtSwapContract, usdxSwapContract])
+  }, [chainId, exchangeAddress, usdtSwapContract, usdxSwapContract])
 
-  const swapType = getSwapType(inputCurrency, outputCurrency, chainId, exchange)
+  const swapType = getSwapType(inputCurrency, outputCurrency, chainId, exchangeAddress)
 
   // get input allowance
-  const inputAllowance = useAddressAllowance(account, inputCurrency, exchange)
+  const inputAllowance = useAddressAllowance(account, inputCurrency, exchangeAddress)
 
   // fetch reserves for each of the currency types
   const { coinReserve: inputCoinReserveAtUsdxSwap, tokenReserve: inputTokenReserveAtUsdxSwap } = useExchangeReserves(USDXSWAP_ADDRESSES[chainId], inputCurrency)
@@ -493,27 +493,27 @@ export default function ExchangePage({ initialCurrency }) {
       if (independentField === INPUT) {
         if (dependentValueOnUsdx.gt(dependentValueOnUsdt)) {
           dependentValue = dependentValueOnUsdx
-          setExchange(USDXSWAP_ADDRESSES[chainId])
+          setExchangeAddress(USDXSWAP_ADDRESSES[chainId])
         } else {
           dependentValue = dependentValueOnUsdt
-          setExchange(USDTSWAP_ADDRESSES[chainId])
+          setExchangeAddress(USDTSWAP_ADDRESSES[chainId])
         }
       } else {
         if (dependentValueOnUsdx.lte(ethers.constants.Zero) && dependentValueOnUsdt.lte(ethers.constants.Zero)) {
           dependentValue = ethers.constants.Zero
         } else if (!dependentValueOnUsdx.lte(ethers.constants.Zero) && dependentValueOnUsdt.lte(ethers.constants.Zero)) {
           dependentValue = dependentValueOnUsdx
-          setExchange(USDXSWAP_ADDRESSES[chainId])
+          setExchangeAddress(USDXSWAP_ADDRESSES[chainId])
         } else if (dependentValueOnUsdx.lte(ethers.constants.Zero) && !dependentValueOnUsdt.lte(ethers.constants.Zero)) {
           dependentValue = dependentValueOnUsdt
-          setExchange(USDTSWAP_ADDRESSES[chainId])
+          setExchangeAddress(USDTSWAP_ADDRESSES[chainId])
         } else {
           if (dependentValueOnUsdx.lt(dependentValueOnUsdt)) {
             dependentValue = dependentValueOnUsdx
-            setExchange(USDXSWAP_ADDRESSES[chainId])
+            setExchangeAddress(USDXSWAP_ADDRESSES[chainId])
           } else {
             dependentValue = dependentValueOnUsdt
-            setExchange(USDTSWAP_ADDRESSES[chainId])
+            setExchangeAddress(USDTSWAP_ADDRESSES[chainId])
           }
         }
       }
@@ -535,7 +535,7 @@ export default function ExchangePage({ initialCurrency }) {
   const exchangeRate = getExchangeRate(inputValueParsed, inputDecimals, outputValueParsed, outputDecimals)
   const exchangeRateInverted = getExchangeRate(inputValueParsed, inputDecimals, outputValueParsed, outputDecimals, true)
 
-  const marketRate = exchange === USDXSWAP_ADDRESSES[chainId]
+  const marketRate = exchangeAddress === USDXSWAP_ADDRESSES[chainId]
     ? getMarketRate(
         swapType,
         USDX_DECIMALS,
@@ -753,6 +753,7 @@ export default function ExchangePage({ initialCurrency }) {
         }}
         showUnlock={showUnlock}
         selectedTokenAddress={inputCurrency}
+        selectedTokenExchangeAddress={exchangeAddress}
         value={inputValueFormatted}
         errorMessage={inputError ? inputError : independentField === INPUT ? independentError : ''}
         backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
@@ -782,6 +783,7 @@ export default function ExchangePage({ initialCurrency }) {
           dispatchSwapState({ type: 'UPDATE_INDEPENDENT', payload: { value: outputValue, field: OUTPUT } })
         }}
         selectedTokenAddress={outputCurrency}
+        selectedTokenExchangeAddress={exchangeAddress}
         value={outputValueFormatted}
         errorMessage={independentField === OUTPUT ? independentError : ''}
         disableUnlock
