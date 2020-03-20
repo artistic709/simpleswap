@@ -157,6 +157,19 @@ export async function getExchangeReserves(exchangeAddress, tokenAddress, library
   }
 }
 
+// get exchange share balance
+export async function getExchangeBalance(exchangeAddress, tokenAddress, account, library) {
+  if (!isAddress(exchangeAddress) || !isAddress(tokenAddress) || !isAddress(account)) {
+    throw Error(`
+      Invalid 'exchangeAddress' parameter: '${exchangeAddress}' or
+      invalid 'tokenAddress' parameter: '${tokenAddress}' or
+      invalid 'account' parameter: '${account}'
+    `)
+  }
+
+  return getContract(exchangeAddress, EXCHANGE_ABI, library).balanceOf(account, ethers.utils.bigNumberify(tokenAddress))
+}
+
 // get token name
 export async function getTokenName(tokenAddress, library) {
   if (!isAddress(tokenAddress)) {

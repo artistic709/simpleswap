@@ -13,15 +13,22 @@ import TransactionHistory from '../../components/TransactionHistory'
 import { ReactComponent as Plus } from '../../assets/images/plus-blue.svg'
 import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
-import { useWeb3React, useSimpleSwapContract } from '../../hooks'
+import { useWeb3React, useContract } from '../../hooks'
 import { amountFormatter, calculateGasMargin } from '../../utils'
 import { useTransactionAdder } from '../../contexts/Transactions'
-import { useTokenDetails } from '../../contexts/Tokens'
+import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useFetchAllBalances } from '../../contexts/AllBalances'
 import { useAddressBalance } from '../../contexts/Balances'
 import { useAddressAllowance } from '../../contexts/Allowances'
-import { useSimpleSwapReserveOf, useSimpleSwapBalanceOf } from '../../contexts/SimpleSwap'
-import { SIMPLESWAP_ADDRESSES, USDX_ADDRESSES } from '../../constants'
+import { useExchangeReserves } from '../../contexts/Exchanges'
+import { useExchangeBalance } from '../../contexts/ExchangeBalances'
+import {
+  USDXSWAP_ADDRESSES,
+  USDX_ADDRESSES,
+  USDTSWAP_ADDRESSES,
+  USDT_ADDRESSES,
+} from '../../constants'
+import EXCHANGE_ABI from '../../constants/abis/exchange.json'
 
 const INPUT = 0
 const OUTPUT = 1
@@ -213,19 +220,37 @@ function calculateSlippageBounds(value) {
   }
 }
 
-const initialAddLiquidityState = {
-  inputValue: '',
-  outputValue: '',
-  lastEditedField: INPUT,
-  outputCurrency: ''
+function getInitialAddLiquidityState(initialCurrencies) {
+  return {
+    inputValue: '',
+    outputValue: '',
+    lastEditedField: INPUT,
+    inputCurrency: initialCurrencies.inputCurrency || '',
+    outputCurrency: initialCurrencies.outputCurrency || '',
+  }
 }
 
 function addLiquidityStateReducer(state, action) {
   switch (action.type) {
     case 'SELECT_CURRENCY': {
-      return {
-        ...state,
-        outputCurrency: action.payload
+      const { inputCurrency, outputCurrency } = state
+      const { field, currency } = action.payload
+
+      const newInputCurrency = field === INPUT ? currency : inputCurrency
+      const newOutputCurrency = field === OUTPUT ? currency : outputCurrency
+
+      if (newInputCurrency === newOutputCurrency) {
+        return {
+          ...state,
+          inputCurrency: field === INPUT ? currency : '',
+          outputCurrency: field === OUTPUT ? currency : ''
+        }
+      } else {
+        return {
+          ...state,
+          inputCurrency: newInputCurrency,
+          outputCurrency: newOutputCurrency
+        }
       }
     }
     case 'UPDATE_VALUE': {
@@ -248,7 +273,7 @@ function addLiquidityStateReducer(state, action) {
       }
     }
     default: {
-      return initialAddLiquidityState
+      return getInitialAddLiquidityState()
     }
   }
 }
@@ -280,25 +305,37 @@ function getExchangeRate(inputValue, inputDecimals, outputValue, outputDecimals,
   } catch {}
 }
 
-function getMarketRate(reserveUSDX, reserveToken, decimals, invert = false) {
-  return getExchangeRate(reserveUSDX, 18, reserveToken, decimals, invert)
+function getMarketRate(reserveUSDX, reserveToken, outputDecimals, invert = false) {
+  return getExchangeRate(reserveUSDX, 18, reserveToken, outputDecimals, invert)
 }
 
 export default function AddLiquidity() {
   const { t } = useTranslation()
   const { library, active, account, chainId } = useWeb3React()
 
-  const [addLiquidityState, dispatchAddLiquidityState] = useReducer(addLiquidityStateReducer, initialAddLiquidityState)
-  const { inputValue, outputValue, lastEditedField, outputCurrency } = addLiquidityState
-  const inputCurrency = USDX_ADDRESSES[chainId]
+  const initialCurrencies = {
+    inputCurrency: USDX_ADDRESSES[chainId],
+    outputCurrency: '',
+  }
+
+  const [addLiquidityState, dispatchAddLiquidityState] = useReducer(addLiquidityStateReducer, initialCurrencies, getInitialAddLiquidityState)
+  const { inputValue, outputValue, lastEditedField, inputCurrency, outputCurrency } = addLiquidityState
 
   const [inputValueParsed, setInputValueParsed] = useState()
   const [outputValueParsed, setOutputValueParsed] = useState()
   const [inputError, setInputError] = useState()
   const [outputError, setOutputError] = useState()
 
-  const { symbol, decimals } = useTokenDetails(outputCurrency)
-  const exchangeContract = useSimpleSwapContract()
+  const { symbol: inputSymbol, decimals: inputDecimals } = useTokenDetails(inputCurrency)
+  const { symbol: outputSymbol, decimals: outputDecimals } = useTokenDetails(outputCurrency)
+  
+  const exchangeList = useMemo(() => ({
+    [USDX_ADDRESSES[chainId]]: USDXSWAP_ADDRESSES[chainId],
+    [USDT_ADDRESSES[chainId]]: USDTSWAP_ADDRESSES[chainId],
+  }), [chainId])
+  const exchangeAddress = useMemo(() => exchangeList[inputCurrency], [exchangeList, inputCurrency])
+  const exchangeContract = useContract(exchangeAddress, EXCHANGE_ABI, library)
+  // const exchangeContract = useSimpleSwapContract()
 
   const [totalPoolTokens, setTotalPoolTokens] = useState()
   const fetchPoolTokens = useCallback(() => {
@@ -319,57 +356,58 @@ export default function AddLiquidity() {
     }
   }, [fetchPoolTokens, library])
 
-  const poolTokenBalance = useSimpleSwapBalanceOf(account, outputCurrency)
+  const poolTokenBalance = useExchangeBalance(account, exchangeAddress, outputCurrency)
 
-  const { reserveUSDX: exchangeUSDXBalance, reserveToken: exchangeTokenBalance } = useSimpleSwapReserveOf(outputCurrency)
-  const isNewExchange = !!(exchangeUSDXBalance && exchangeTokenBalance && exchangeUSDXBalance.isZero() && exchangeTokenBalance.isZero())
+  const { coinReserve, tokenReserve } = useExchangeReserves(exchangeAddress, outputCurrency)
+  
+  const isNewExchange = !!(coinReserve && tokenReserve && coinReserve.isZero() && tokenReserve.isZero())
 
-  // 18 decimals
+  // 18 outputDecimals
   const poolTokenPercentage =
     poolTokenBalance && totalPoolTokens && isNewExchange === false && !totalPoolTokens.isZero()
       ? poolTokenBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
       : undefined
-  const USDXShare =
-    exchangeUSDXBalance && poolTokenPercentage
-      ? exchangeUSDXBalance
+  const coinShare =
+    coinReserve && poolTokenPercentage
+      ? coinReserve
           .mul(poolTokenPercentage)
           .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
       : undefined
   const tokenShare =
-    exchangeTokenBalance && poolTokenPercentage
-      ? exchangeTokenBalance
+    tokenReserve && poolTokenPercentage
+      ? tokenReserve
           .mul(poolTokenPercentage)
           .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
       : undefined
 
   const liquidityMinted = isNewExchange
     ? inputValueParsed
-    : totalPoolTokens && inputValueParsed && exchangeUSDXBalance && !exchangeUSDXBalance.isZero()
-    ? totalPoolTokens.mul(inputValueParsed).div(exchangeUSDXBalance)
+    : totalPoolTokens && inputValueParsed && coinReserve && !coinReserve.isZero()
+    ? totalPoolTokens.mul(inputValueParsed).div(coinReserve)
     : undefined
 
   // user balances
   const inputBalance = useAddressBalance(account, inputCurrency)
   const outputBalance = useAddressBalance(account, outputCurrency)
 
-  const USDXPerLiquidityToken =
-    exchangeUSDXBalance && totalPoolTokens && isNewExchange === false && !totalPoolTokens.isZero()
-      ? exchangeUSDXBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
+  const coinPerLiquidityToken =
+    coinReserve && totalPoolTokens && isNewExchange === false && !totalPoolTokens.isZero()
+      ? coinReserve.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
       : undefined
   const tokenPerLiquidityToken =
-    exchangeTokenBalance && totalPoolTokens && isNewExchange === false && !totalPoolTokens.isZero()
-      ? exchangeTokenBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
+    tokenReserve && totalPoolTokens && isNewExchange === false && !totalPoolTokens.isZero()
+      ? tokenReserve.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
       : undefined
 
   const outputValueMax = outputValueParsed && calculateSlippageBounds(outputValueParsed).maximum
   const liquidityTokensMin = liquidityMinted && calculateSlippageBounds(liquidityMinted).minimum
 
   const marketRate = useMemo(() => {
-    return getMarketRate(exchangeUSDXBalance, exchangeTokenBalance, decimals)
-  }, [exchangeUSDXBalance, exchangeTokenBalance, decimals])
+    return getMarketRate(coinReserve, tokenReserve, outputDecimals)
+  }, [coinReserve, tokenReserve, outputDecimals])
   const marketRateInverted = useMemo(() => {
-    return getMarketRate(exchangeUSDXBalance, exchangeTokenBalance, decimals, true)
-  }, [exchangeUSDXBalance, exchangeTokenBalance, decimals])
+    return getMarketRate(coinReserve, tokenReserve, outputDecimals, true)
+  }, [coinReserve, tokenReserve, outputDecimals])
 
   function renderTransactionDetails() {
     const blue = text => <BlueSpan>{text}</BlueSpan>
@@ -382,7 +420,7 @@ export default function AddLiquidity() {
           <TransactionInfoTop>
             <SummaryWrapper>
               <SummaryText>
-                {t('youAreAdding')} {blue(`${inputValue} USDX`)} {t('and')} {blue(`${outputValue} ${symbol}`)}
+                {t('youAreAdding')} {blue(`${inputValue} ${inputSymbol}`)} {t('and')} {blue(`${outputValue} ${outputSymbol}`)}
               </SummaryText>
             </SummaryWrapper>
             <Trade />
@@ -403,12 +441,12 @@ export default function AddLiquidity() {
               <SummaryText>
                 {t('youAreSettingExRate')}{' '}
                 {strong(
-                  `1 USDX = ${amountFormatter(
-                    getMarketRate(inputValueParsed, outputValueParsed, decimals),
+                  `1 ${inputSymbol} = ${amountFormatter(
+                    getMarketRate(inputValueParsed, outputValueParsed, outputDecimals),
                     18,
                     4,
                     false
-                  )} ${symbol}`
+                  )} ${outputSymbol}`
                 )}
               </SummaryText>
             </SummaryWrapper>
@@ -421,8 +459,8 @@ export default function AddLiquidity() {
           <TransactionInfoTop>
             <SummaryWrapper>
               <SummaryText>
-                {t('youAreAdding')} {blue(`${amountFormatter(inputValueParsed, 18, 4)} USDX`)} {t('and')} {'at most'}{' '}
-                {blue(`${amountFormatter(outputValueMax, decimals, Math.min(decimals, 4))} ${symbol}`)}
+                {t('youAreAdding')} {blue(`${amountFormatter(inputValueParsed, inputDecimals, 4)} ${inputSymbol}`)} {t('and')} {'at most'}{' '}
+                {blue(`${amountFormatter(outputValueMax, outputDecimals, Math.min(outputDecimals, 4))} ${outputSymbol}`)}
               </SummaryText>
             </SummaryWrapper>
             <Trade />
@@ -441,8 +479,8 @@ export default function AddLiquidity() {
             </SummaryWrapper>
             <SummaryWrapper>
               <SummaryText>
-                {t('tokenWorth')} {strong(amountFormatter(USDXPerLiquidityToken, 18, 4))} USDX {t('and')}{' '}
-                {strong(amountFormatter(tokenPerLiquidityToken, decimals, Math.min(decimals, 4)))} {symbol}
+                {t('tokenWorth')} {strong(amountFormatter(coinPerLiquidityToken, inputDecimals, 4))} ${inputSymbol} {t('and')}{' '}
+                {strong(amountFormatter(tokenPerLiquidityToken, outputDecimals, Math.min(outputDecimals, 4)))} {outputSymbol}
               </SummaryText>
             </SummaryWrapper>
           </TransactionInfoBottom>
@@ -507,7 +545,7 @@ export default function AddLiquidity() {
       { gasLimit }
     )
     .then(response => {
-      const comment = `Deposit ${inputValue} USDx and ${outputValue} ${symbol} to pool`
+      const comment = `Deposit ${inputValue} ${inputSymbol} and ${outputValue} ${outputSymbol} to pool`
       addTransaction(response, { comment })
     })
   }
@@ -519,16 +557,16 @@ export default function AddLiquidity() {
   useEffect(() => {
     if (isNewExchange) {
       if (inputValue) {
-        const parsedInputValue = ethers.utils.parseUnits(inputValue, 18)
+        const parsedInputValue = ethers.utils.parseUnits(inputValue, inputDecimals)
         setInputValueParsed(parsedInputValue)
       }
 
       if (outputValue) {
-        const parsedOutputValue = ethers.utils.parseUnits(outputValue, decimals)
+        const parsedOutputValue = ethers.utils.parseUnits(outputValue, outputDecimals)
         setOutputValueParsed(parsedOutputValue)
       }
     }
-  }, [decimals, inputValue, isNewExchange, outputValue])
+  }, [outputDecimals, inputValue, isNewExchange, outputValue, inputDecimals])
 
   // parse input value
   useEffect(() => {
@@ -537,10 +575,10 @@ export default function AddLiquidity() {
       inputValue &&
       marketRate &&
       lastEditedField === INPUT &&
-      (decimals || decimals === 0)
+      (outputDecimals || outputDecimals === 0)
     ) {
       try {
-        const parsedValue = ethers.utils.parseUnits(inputValue, 18)
+        const parsedValue = ethers.utils.parseUnits(inputValue, inputDecimals)
 
         if (parsedValue.lte(ethers.constants.Zero) || parsedValue.gte(ethers.constants.MaxUint256)) {
           throw Error()
@@ -550,12 +588,12 @@ export default function AddLiquidity() {
         const currencyAmount = marketRate
           .mul(parsedValue)
           .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
-          .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18 - decimals)))
+          .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18 - outputDecimals)))
         
         setOutputValueParsed(currencyAmount)
         dispatchAddLiquidityState({
           type: 'UPDATE_DEPENDENT_VALUE',
-          payload: { field: OUTPUT, value: amountFormatter(currencyAmount, decimals, Math.min(decimals, 4), false) }
+          payload: { field: OUTPUT, value: amountFormatter(currencyAmount, outputDecimals, Math.min(outputDecimals, 4), false) }
         })
 
         return () => {
@@ -571,7 +609,7 @@ export default function AddLiquidity() {
         setOutputError(t('inputNotValid'))
       }
     }
-  }, [inputValue, isNewExchange, lastEditedField, marketRate, decimals, t])
+  }, [inputDecimals, inputValue, isNewExchange, lastEditedField, marketRate, outputDecimals, t])
 
   // parse output value
   useEffect(() => {
@@ -580,10 +618,10 @@ export default function AddLiquidity() {
       outputValue &&
       marketRateInverted &&
       lastEditedField === OUTPUT &&
-      (decimals || decimals === 0)
+      (outputDecimals || outputDecimals === 0)
     ) {
       try {
-        const parsedValue = ethers.utils.parseUnits(outputValue, decimals)
+        const parsedValue = ethers.utils.parseUnits(outputValue, outputDecimals)
 
         if (parsedValue.lte(ethers.constants.Zero) || parsedValue.gte(ethers.constants.MaxUint256)) {
           throw Error()
@@ -593,12 +631,12 @@ export default function AddLiquidity() {
 
         const currencyAmount = marketRateInverted
           .mul(parsedValue)
-          .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(decimals)))
+          .div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(outputDecimals)))
 
         setInputValueParsed(currencyAmount)
         dispatchAddLiquidityState({
           type: 'UPDATE_DEPENDENT_VALUE',
-          payload: { field: INPUT, value: amountFormatter(currencyAmount, 18, 4, false) }
+          payload: { field: INPUT, value: amountFormatter(currencyAmount, inputDecimals, Math.min(outputDecimals, 4), false) }
         })
 
         return () => {
@@ -614,7 +652,7 @@ export default function AddLiquidity() {
         setInputError(t('inputNotValid'))
       }
     }
-  }, [outputValue, isNewExchange, lastEditedField, marketRateInverted, decimals, t])
+  }, [outputValue, isNewExchange, lastEditedField, marketRateInverted, outputDecimals, t, inputDecimals])
 
   // input validation
   useEffect(() => {
@@ -635,22 +673,22 @@ export default function AddLiquidity() {
     }
   }, [inputValueParsed, inputBalance, outputValueMax, outputBalance, t])
 
-  const USDXAllowance = useAddressAllowance(account, USDX_ADDRESSES[chainId], SIMPLESWAP_ADDRESSES[chainId])
-  const [showUSDXUnlock, setShowUSDXUnlock] = useState(false)
+  const coinAllowance = useAddressAllowance(account, inputCurrency, exchangeAddress)
+  const [showCoinUnlock, setShowCoinUnlock] = useState(false)
   useEffect(() => {
-    if (inputValueParsed && USDXAllowance) {
-      if (USDXAllowance.lt(inputValueParsed)) {
+    if (inputValueParsed && coinAllowance) {
+      if (coinAllowance.lt(inputValueParsed)) {
         setInputError(t('unlockTokenCont'))
-        setShowUSDXUnlock(true)
+        setShowCoinUnlock(true)
       }
       return () => {
         setInputError()
-        setShowUSDXUnlock(false)
+        setShowCoinUnlock(false)
       }
     }
-  }, [inputValueParsed, USDXAllowance, t])
+  }, [inputValueParsed, coinAllowance, t])
 
-  const allowance = useAddressAllowance(account, outputCurrency, SIMPLESWAP_ADDRESSES[chainId])
+  const allowance = useAddressAllowance(account, outputCurrency, exchangeAddress)
   const [showUnlock, setShowUnlock] = useState(false)
   useEffect(() => {
     if (outputValueParsed && allowance) {
@@ -669,6 +707,7 @@ export default function AddLiquidity() {
   const isValid = (inputError === null || outputError === null) && !showUnlock
 
   const allBalances = useFetchAllBalances()
+  const allTokens = useAllTokenDetails()
 
   return (
     <>
@@ -680,34 +719,37 @@ export default function AddLiquidity() {
             </span>{' '}
             {t('firstLiquidity')}
           </NewExchangeWarningText>
-          <NewExchangeWarningText>{t('initialExchangeRate', { label: symbol })}</NewExchangeWarningText>
+          <NewExchangeWarningText>{t('initialExchangeRate', { label: outputSymbol })}</NewExchangeWarningText>
         </NewExchangeWarning>
       ) : null}
-
       <CurrencyInputPanel
         title={t('deposit')}
         allBalances={allBalances}
-        extraText={inputBalance && formatBalance(amountFormatter(inputBalance, 18, 3))}
+        extraText={inputBalance && formatBalance(amountFormatter(inputBalance, inputDecimals, 3))}
         extraTextClickHander={() => {
           if (inputBalance) {
             if (inputBalance.gt(ethers.constants.Zero)) {
               dispatchAddLiquidityState({
                 type: 'UPDATE_VALUE',
-                payload: { value: amountFormatter(inputBalance, 18, 18, false), field: INPUT }
+                payload: { value: amountFormatter(inputBalance, inputDecimals, inputDecimals, false), field: INPUT }
               })
             }
           }
         }}
+        onCurrencySelected={inputCurrency => {
+          dispatchAddLiquidityState({ type: 'SELECT_CURRENCY', payload: { currency: inputCurrency, field: INPUT } })
+        }}
         onValueChange={inputValue => {
           dispatchAddLiquidityState({ type: 'UPDATE_VALUE', payload: { value: inputValue, field: INPUT } })
         }}
-        selectedTokenAddress={USDX_ADDRESSES[chainId]}
+        selectedTokenAddress={inputCurrency}
+        selectedTokenExchangeAddress={exchangeAddress}
         value={inputValue}
-        showUnlock={showUSDXUnlock}
+        showUnlock={showCoinUnlock}
         errorMessage={inputError}
-        disableTokenSelect
         backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
         inputBackgroundColor='#1460E8'
+        excludeTokens={Object.keys(allTokens).filter(token => !(token === USDX_ADDRESSES[chainId] || token === USDT_ADDRESSES[chainId]))}
       />
       <OversizedPanel>
         <DownArrowBackground>
@@ -718,20 +760,21 @@ export default function AddLiquidity() {
         title={t('deposit')}
         allBalances={allBalances}
         description={isNewExchange ? '' : outputValue ? `(${t('estimated')})` : ''}
-        extraText={outputBalance && formatBalance(amountFormatter(outputBalance, decimals, Math.min(decimals, 3)))}
+        extraText={outputBalance && formatBalance(amountFormatter(outputBalance, outputDecimals, Math.min(outputDecimals, 3)))}
         extraTextClickHander={() => {
           if (outputBalance) {
             if (outputBalance.gt(ethers.constants.Zero)) {
               dispatchAddLiquidityState({
                 type: 'UPDATE_VALUE',
-                payload: { value: amountFormatter(outputBalance, decimals, decimals, false), field: OUTPUT }
+                payload: { value: amountFormatter(outputBalance, outputDecimals, outputDecimals, false), field: OUTPUT }
               })
             }
           }
         }}
         selectedTokenAddress={outputCurrency}
+        selectedTokenExchangeAddress={exchangeAddress}
         onCurrencySelected={outputCurrency => {
-          dispatchAddLiquidityState({ type: 'SELECT_CURRENCY', payload: outputCurrency })
+          dispatchAddLiquidityState({ type: 'SELECT_CURRENCY', payload: { currency: outputCurrency, field: OUTPUT } })
         }}
         onValueChange={outputValue => {
           dispatchAddLiquidityState({ type: 'UPDATE_VALUE', payload: { value: outputValue, field: OUTPUT } })
@@ -743,24 +786,24 @@ export default function AddLiquidity() {
         inputBackgroundColor='#ED7C0E'
         renderExchangeRate={() => (
           <ExchangeRateWrapper>
-            <span>{marketRate && `1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}`}</span>
+            <span>{marketRate && `1 ${inputSymbol} = ${amountFormatter(marketRate, 18, 4)} ${outputSymbol}`}</span>
           </ExchangeRateWrapper>
         )}
-        excludeTokens={['0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371']}
+        excludeTokens={[inputCurrency]}
       />
       <Row>
         <DataPanel>
           <DataPanelItem>
             <div className="title">{t('currentPoolSize')}</div>
-            {exchangeUSDXBalance && exchangeTokenBalance ? (
+            {coinReserve && tokenReserve ? (
               <>
                 <div className="data-row">
-                  <div className="data-key">USDx</div>
-                  <div className="data-value">{amountFormatter(exchangeUSDXBalance, 18, 4)}</div>
+                  <div className="data-key">{inputSymbol}</div>
+                  <div className="data-value">{amountFormatter(coinReserve, inputDecimals, Math.min(4, outputDecimals))}</div>
                 </div>
                 <div className="data-row">
-                  <div className="data-key">{symbol}</div>
-                  <div className="data-value">{amountFormatter(exchangeTokenBalance, decimals, Math.min(4, decimals))}</div>
+                  <div className="data-key">{outputSymbol}</div>
+                  <div className="data-value">{amountFormatter(tokenReserve, outputDecimals, Math.min(4, outputDecimals))}</div>
                 </div>
               </>
             ) : (
@@ -770,17 +813,17 @@ export default function AddLiquidity() {
           <DataPanelItem>
             <div className="title">
               {t('yourPoolShare')} {' '}
-              <span className="strong-title">({exchangeUSDXBalance && amountFormatter(poolTokenPercentage, 16, 2)}%)</span>
+              <span className="strong-title">({coinReserve && amountFormatter(poolTokenPercentage, 16, 2)}%)</span>
             </div>
-            {USDXShare && tokenShare ? (
+            {coinShare && tokenShare ? (
               <>
                 <div className="data-row">
-                  <div className="data-key">USDx</div>
-                  <div className="data-value">{amountFormatter(USDXShare, 18, 4)}</div>
+                  <div className="data-key">{inputSymbol}</div>
+                  <div className="data-value">{amountFormatter(coinShare, inputDecimals, Math.min(4, outputDecimals))}</div>
                 </div>
                 <div className="data-row">
-                  <div className="data-key">{symbol}</div>
-                  <div className="data-value">{amountFormatter(tokenShare, decimals, Math.min(4, decimals))}</div>
+                  <div className="data-key">{outputSymbol}</div>
+                  <div className="data-value">{amountFormatter(tokenShare, outputDecimals, Math.min(4, outputDecimals))}</div>
                 </div>
               </>
             ) : (

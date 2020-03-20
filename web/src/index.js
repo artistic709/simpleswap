@@ -14,6 +14,7 @@ import BalancesContextProvider from './contexts/Balances'
 import AllowancesContextProvider from './contexts/Allowances'
 import AllBalancesContextProvider from './contexts/AllBalances'
 import ExchangesContextProvider from './contexts/Exchanges'
+import ExchangeBalancesContextProvider from './contexts/ExchangeBalances'
 import SimpleSwapContextProvider from './contexts/SimpleSwap'
 
 import App from './pages/App'
@@ -47,7 +48,9 @@ function ContextProviders({ children }) {
                 <AllowancesContextProvider>
                   <SimpleSwapContextProvider>
                     <ExchangesContextProvider>
-                      {children}
+                      <ExchangeBalancesContextProvider>
+                        {children}
+                      </ExchangeBalancesContextProvider>
                     </ExchangesContextProvider>
                   </SimpleSwapContextProvider>
                 </AllowancesContextProvider>

@@ -10,7 +10,7 @@ import '@reach/tooltip/styles.css'
 import { isMobile } from 'react-device-detect'
 
 import { Spinner } from '../../theme'
-import { useWeb3React, useTokenContract } from '../../hooks'
+import { useTokenContract } from '../../hooks'
 import { isAddress, calculateGasMargin, formatTokenBalance, formatEthBalance } from '../../utils'
 import { ReactComponent as ArrowDropDown } from '../../assets/images/arrow_drop_down.svg'
 import { ReactComponent as Done } from '../../assets/images/done.svg'
@@ -21,7 +21,6 @@ import TokenLogo from '../TokenLogo'
 import { useTransactionAdder, usePendingApproval } from '../../contexts/Transactions'
 import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useUSDPrice } from '../../contexts/Application'
-import { SIMPLESWAP_ADDRESSES } from '../../constants'
 
 const GAS_MARGIN = ethers.utils.bigNumberify(1000)
 
@@ -356,6 +355,7 @@ export default function CurrencyInputPanel({
   disableUnlock,
   disableTokenSelect,
   selectedTokenAddress = '',
+  selectedTokenExchangeAddress = '',
   showUnlock,
   value,
   renderExchangeRate,
@@ -364,12 +364,8 @@ export default function CurrencyInputPanel({
   inputBackgroundColor
 }) {
   const { t } = useTranslation()
-
-  const { chainId } = useWeb3React()
   
   const tokenContract = useTokenContract(selectedTokenAddress)
-  
-  const selectedTokenExchangeAddress = SIMPLESWAP_ADDRESSES[chainId]
   
   const pendingApproval = usePendingApproval(selectedTokenAddress)
   
