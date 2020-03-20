@@ -354,6 +354,7 @@ export default function CurrencyInputPanel({
   errorMessage,
   disableUnlock,
   disableTokenSelect,
+  disableValueInput,
   selectedTokenAddress = '',
   selectedTokenExchangeAddress = '',
   showUnlock,
@@ -453,27 +454,29 @@ export default function CurrencyInputPanel({
             </CurrencySelect>
             {menuIsOpen && <Mask />}
           </FlexRow>
-          <InputWrapper backgroundColor={inputBackgroundColor}>
-            {renderUnlockButton()}
-            <Input
-              type="number"
-              min="0"
-              error={!!errorMessage}
-              placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
-              step="0.000000000000000001"
-              onChange={onChange}
-              onKeyPress={e => {
-                const charCode = e.which ? e.which : e.keyCode
+          {!disableValueInput && (
+            <InputWrapper backgroundColor={inputBackgroundColor}>
+              {renderUnlockButton()}
+              <Input
+                type="number"
+                min="0"
+                error={!!errorMessage}
+                placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
+                step="0.000000000000000001"
+                onChange={onChange}
+                onKeyPress={e => {
+                  const charCode = e.which ? e.which : e.keyCode
 
-                // Prevent 'minus' character
-                if (charCode === 45) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-              value={value}
-            />
-          </InputWrapper>
+                  // Prevent 'minus' character
+                  if (charCode === 45) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }
+                }}
+                value={value}
+              />
+            </InputWrapper>
+          )}
         </InputRow>
       </>
     )

@@ -76,5 +76,6 @@
   "noToken": "查無此代幣",
   "you": "你",
   "history": "交易紀錄",
-  "insufficientReserve": "交易準備金不足"
+  "insufficientReserve": "交易準備金不足",
+  "reserveToken": "儲備代幣"
 }

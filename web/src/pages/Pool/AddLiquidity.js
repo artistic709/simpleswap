@@ -335,7 +335,6 @@ export default function AddLiquidity() {
   }), [chainId])
   const exchangeAddress = useMemo(() => exchangeList[inputCurrency], [exchangeList, inputCurrency])
   const exchangeContract = useContract(exchangeAddress, EXCHANGE_ABI, library)
-  // const exchangeContract = useSimpleSwapContract()
 
   const [totalPoolTokens, setTotalPoolTokens] = useState()
   const fetchPoolTokens = useCallback(() => {

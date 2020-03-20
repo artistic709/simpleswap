@@ -89,5 +89,6 @@
   "noToken": "Can not find tokens",
   "you": "You",
   "history": "History",
-  "insufficientReserve": "Insufficient Reserve"
+  "insufficientReserve": "Insufficient Reserve",
+  "reserveToken": "Reserve Token"
 }
