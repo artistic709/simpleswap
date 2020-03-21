@@ -364,8 +364,6 @@ export default function ExchangePage({ initialCurrency }) {
   const { coinReserve: inputCoinReserveAtUsdtSwap, tokenReserve: inputTokenReserveAtUsdtSwap } = useExchangeReserves(USDTSWAP_ADDRESSES[chainId], inputCurrency)
   const { coinReserve: outputCoinReserveAtUsdtSwap, tokenReserve: outputTokenReserveAtUsdtSwap } = useExchangeReserves(USDTSWAP_ADDRESSES[chainId], outputCurrency)
   
-  // const { reserveUSDX: inputReserveUSDX, reserveToken: inputReserveToken } = useSimpleSwapReserveOf(inputCurrency)
-  // const { reserveUSDX: outputReserveUSDX, reserveToken: outputReserveToken } = useSimpleSwapReserveOf(outputCurrency)
 
   // get balances for each of the currency types
   const inputBalance = useAddressBalance(account, inputCurrency)
