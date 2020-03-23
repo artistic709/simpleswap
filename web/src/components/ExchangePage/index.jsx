@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useEffect, useMemo } from 'react'
+import React, { useState, useReducer, useEffect } from 'react'
 import ReactGA from 'react-ga'
 
 import { useTranslation } from 'react-i18next'
@@ -22,6 +22,7 @@ import { useFetchAllBalances } from '../../contexts/AllBalances'
 import { useAddressAllowance } from '../../contexts/Allowances'
 import { useExchangeReserves } from '../../contexts/Exchanges'
 import {
+  AGGREGATOR_ADDRESSES,
   USDXSWAP_ADDRESSES,
   USDX_ADDRESSES,
   USDX_DECIMALS,
@@ -29,7 +30,7 @@ import {
   USDT_ADDRESSES,
   USDT_DECIMALS,
 } from '../../constants'
-import EXCHANGE_ABI from '../../constants/abis/exchange.json'
+import AGGREGATOR_ABI from '../../constants/abis/aggregator.json'
 
 const INPUT = 0
 const OUTPUT = 1
@@ -341,21 +342,13 @@ export default function ExchangePage({ initialCurrency }) {
     outputCurrency
   )
 
-  const usdxSwapContract = useContract(USDXSWAP_ADDRESSES[chainId], EXCHANGE_ABI)
-  const usdtSwapContract = useContract(USDTSWAP_ADDRESSES[chainId], EXCHANGE_ABI)
+  const aggregatorContract = useContract(AGGREGATOR_ADDRESSES[chainId], AGGREGATOR_ABI)
   const [exchangeAddress, setExchangeAddress] = useState()
-  const contract = useMemo(() => {
-    if (exchangeAddress === USDXSWAP_ADDRESSES[chainId]) {
-      return usdxSwapContract
-    } else {
-      return usdtSwapContract
-    }
-  }, [chainId, exchangeAddress, usdtSwapContract, usdxSwapContract])
 
   const swapType = getSwapType(inputCurrency, outputCurrency, chainId, exchangeAddress)
 
   // get input allowance
-  const inputAllowance = useAddressAllowance(account, inputCurrency, exchangeAddress)
+  const inputAllowance = useAddressAllowance(account, inputCurrency, AGGREGATOR_ADDRESSES[chainId])
 
   // fetch reserves for each of the currency types
   const { coinReserve: inputCoinReserveAtUsdxSwap, tokenReserve: inputTokenReserveAtUsdxSwap } = useExchangeReserves(USDXSWAP_ADDRESSES[chainId], inputCurrency)
@@ -414,7 +407,7 @@ export default function ExchangePage({ initialCurrency }) {
   }, [independentValue, independentDecimals, t])
 
   // calculate slippage from target rate
-  const { minimum: dependentValueMinumum, maximum: dependentValueMaximum } = calculateSlippageBounds(
+  const { minimum: dependentValueMinimum, maximum: dependentValueMaximum } = calculateSlippageBounds(
     dependentValue,
     swapType === TOKEN_TO_TOKEN,
     tokenAllowedSlippageBig,
@@ -582,133 +575,44 @@ export default function ExchangePage({ initialCurrency }) {
 
   async function onSwap() {
     const deadline = Math.ceil(Date.now() / 1000) + DEADLINE_FROM_NOW
+    const value = ethers.constants.Zero
+    const comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
 
-    let estimate, method, args, value, comment
+    let estimate, method, args
     if (independentField === INPUT) {
       ReactGA.event({
         category: `${swapType}`,
         action: sending ? 'TransferInput' : 'SwapInput'
       })
 
-      if (swapType === COIN_TO_TOKEN) {
-        estimate = sending ? contract.estimate.CoinToTokenTransferInput : contract.estimate.CoinToTokenSwapInput
-        method = sending ? contract.CoinToTokenTransferInput : contract.CoinToTokenSwapInput
-        args = sending ? [
-          outputCurrency,
-          independentValueParsed,
-          dependentValueMinumum,
-          deadline,
-          recipient.address
-        ] : [
-          outputCurrency,
-          independentValueParsed,
-          dependentValueMinumum,
-          deadline
-        ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      } else if (swapType === TOKEN_TO_COIN) {
-        estimate = sending ? contract.estimate.tokenToCoinTransferInput : contract.estimate.tokenToCoinSwapInput
-        method = sending ? contract.tokenToCoinTransferInput : contract.tokenToCoinSwapInput
-        args = sending
-          ? [
-              inputCurrency,
-              independentValueParsed,
-              dependentValueMinumum,
-              deadline,
-              recipient.address
-            ]
-          : [inputCurrency, independentValueParsed, dependentValueMinumum, deadline]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      } else if (swapType === TOKEN_TO_TOKEN) {
-        estimate = sending ? contract.estimate.tokenToTokenTransferInput : contract.estimate.tokenToTokenSwapInput
-        method = sending ? contract.tokenToTokenTransferInput : contract.tokenToTokenSwapInput
-        args = sending
-          ? [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMinumum,
-              deadline,
-              recipient.address,
-            ]
-          : [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMinumum,
-              deadline
-            ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      }
+      estimate = aggregatorContract.estimate.tradeInput
+      method = aggregatorContract.tradeInput
+      args = [
+        exchangeAddress,
+        inputCurrency,
+        independentValueParsed,
+        outputCurrency,
+        dependentValueMinimum,
+        deadline,
+        (sending ? recipient.address : account),
+      ]
     } else if (independentField === OUTPUT) {
       ReactGA.event({
         category: `${swapType}`,
         action: sending ? 'TransferOutput' : 'SwapOutput'
       })
-
-      if (swapType === COIN_TO_TOKEN) {
-        estimate = sending ? contract.estimate.CoinToTokenTransferOutput : contract.estimate.CoinToTokenSwapOutput
-        method = sending ? contract.CoinToTokenTransferOutput : contract.CoinToTokenSwapOutput
-        args = sending 
-          ? [
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline,
-              recipient.address
-            ] 
-          : [
-            outputCurrency,
-            independentValueParsed,
-            dependentValueMaximum,
-            deadline
-          ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      } else if (swapType === TOKEN_TO_COIN) {
-        estimate = sending ? contract.estimate.tokenToCoinTransferOutput : contract.estimate.tokenToCoinSwapOutput
-        method = sending ? contract.tokenToCoinTransferOutput : contract.tokenToCoinSwapOutput
-        args = sending
-          ? [
-              inputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline,
-              recipient.address
-            ]
-          : [
-              inputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline
-            ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      } else if (swapType === TOKEN_TO_TOKEN) {
-        estimate = sending ? contract.estimate.tokenToTokenTransferOutput : contract.estimate.tokenToTokenSwapOutput
-        method = sending ? contract.tokenToTokenTransferOutput : contract.tokenToTokenSwapOutput
-        args = sending
-          ? [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline,
-              recipient.address
-            ]
-          : [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline
-            ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      }
+      
+      estimate = aggregatorContract.estimate.tradeOutput
+      method = aggregatorContract.tradeOutput
+      args = [
+        exchangeAddress,
+        inputCurrency,
+        dependentValueMaximum,
+        outputCurrency,
+        independentValueParsed,
+        deadline,
+        (sending ? recipient.address : account),
+      ]
     }
 
     const estimatedGasLimit = await estimate(...args, { value })
@@ -751,7 +655,7 @@ export default function ExchangePage({ initialCurrency }) {
         }}
         showUnlock={showUnlock}
         selectedTokenAddress={inputCurrency}
-        selectedTokenExchangeAddress={exchangeAddress}
+        selectedTokenExchangeAddress={AGGREGATOR_ADDRESSES[chainId]}
         value={inputValueFormatted}
         errorMessage={inputError ? inputError : independentField === INPUT ? independentError : ''}
         backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
@@ -781,7 +685,7 @@ export default function ExchangePage({ initialCurrency }) {
           dispatchSwapState({ type: 'UPDATE_INDEPENDENT', payload: { value: outputValue, field: OUTPUT } })
         }}
         selectedTokenAddress={outputCurrency}
-        selectedTokenExchangeAddress={exchangeAddress}
+        selectedTokenExchangeAddress={AGGREGATOR_ADDRESSES[chainId]}
         value={outputValueFormatted}
         errorMessage={independentField === OUTPUT ? independentError : ''}
         disableUnlock
@@ -827,7 +731,7 @@ export default function ExchangePage({ initialCurrency }) {
         outputSymbol={outputSymbol}
         inputDecimals={inputDecimals}
         outputDecimals={outputDecimals}
-        dependentValueMinumum={dependentValueMinumum}
+        dependentValueMinimum={dependentValueMinimum}
         dependentValueMaximum={dependentValueMaximum}
         dependentDecimals={dependentDecimals}
         independentDecimals={independentDecimals}

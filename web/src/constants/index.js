@@ -1,3 +1,8 @@
+export const AGGREGATOR_ADDRESSES = {
+  1: '', // real address on the mainnet
+  4: '0x4B22F54EE6CaAd40e14939502a9d6ACC0EE1Cf86',
+}
+
 export const USDXSWAP_ADDRESSES = {
   1: '', // real address on the mainnet
   4: '0xF5A8d81DeACCd0996A441cc5177d12d33303aDF9',
