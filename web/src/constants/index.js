@@ -1,8 +1,3 @@
-export const SIMPLESWAP_ADDRESSES = {
-  1: '0x78d095f85Fa1F6490E32cc841252A85e2b2D88f7', // not real address
-  4: '0x6f8D7e76c5857f88E7Be57E3cb869D874A02ed43',
-}
-
 export const USDXSWAP_ADDRESSES = {
   1: '', // real address on the mainnet
   4: '0xF5A8d81DeACCd0996A441cc5177d12d33303aDF9',
@@ -28,3 +23,9 @@ export const USDT_ADDRESSES = {
 export const USDT_DECIMALS = 6
 
 export const NetworkContextName = 'NETWORK'
+
+// deprecated
+export const SIMPLESWAP_ADDRESSES = {
+  1: '',
+  4: '0x6f8D7e76c5857f88E7Be57E3cb869D874A02ed43',
+}

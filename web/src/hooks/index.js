@@ -4,7 +4,7 @@ import copy from 'copy-to-clipboard'
 import { isMobile } from 'react-device-detect'
 
 import { injected } from '../connectors'
-import { getContract, isAddress, getSimpleSwapContract } from '../utils'
+import { getContract, isAddress } from '../utils'
 import { NetworkContextName } from '../constants'
 import ERC20_ABI from '../constants/abis/erc20'
 
@@ -181,19 +181,6 @@ export function useContract(address, ABI, withSignerIfPossible = true) {
       return null
     }
   }, [address, ABI, library, withSignerIfPossible, account])
-}
-
-//returns null on errors
-export function useSimpleSwapContract(withSignerIfPossible = true) {
-  const { chainId, library, account } = useWeb3React()
-
-  return useMemo(() => {
-    try {
-      return getSimpleSwapContract(chainId, library, withSignerIfPossible ? account : undefined)
-    } catch {
-      return null
-    }
-  }, [chainId, library, withSignerIfPossible, account])
 }
 
 // returns null on errors

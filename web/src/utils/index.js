@@ -1,11 +1,9 @@
 import { ethers } from 'ethers'
 import BigNumber from 'bignumber.js'
 
-import SIMPLESWAP_ABI from '../constants/abis/simpleswap'
 import EXCHANGE_ABI from '../constants/abis/exchange.json'
 import ERC20_ABI from '../constants/abis/erc20'
 import ERC20_BYTES32_ABI from '../constants/abis/erc20_bytes32'
-import { SIMPLESWAP_ADDRESSES } from '../constants'
 import { formatFixed } from '@uniswap/sdk'
 
 import UncheckedJsonRpcSigner from './signer'
@@ -107,35 +105,6 @@ export function getContract(address, ABI, library, account) {
   }
 
   return new ethers.Contract(address, ABI, getProviderOrSigner(library, account))
-}
-
-// account is optional
-export function getSimpleSwapContract(networkId, library, account) {
-  return getContract(SIMPLESWAP_ADDRESSES[networkId], SIMPLESWAP_ABI, library, account)
-}
-
-export function getUSDXReserveOf(tokenAddress, networkId, library, account) {
-  if (!isAddress(tokenAddress)) {
-    throw Error(`Invalid 'tokenAddress' parameter '${tokenAddress}'.`)
-  }
-
-  return getSimpleSwapContract(networkId, library, account).USDXReserveOf(tokenAddress)
-}
-
-export function getTokenReserveOf(tokenAddress, networkId, library, account) {
-  if (!isAddress(tokenAddress)) {
-    throw Error(`Invalid 'tokenAddress' parameter '${tokenAddress}'`)
-  }
-
-  return getSimpleSwapContract(networkId, library, account).TokenReserveOf(tokenAddress)
-}
-
-export function getSimpleSwapBalanceOf(ownerAddress, tokenAddress, networkId, library, account) {
-  if (!isAddress(tokenAddress)) {
-    throw Error(`Invalid 'tokenAddress' parameter '${tokenAddress}'.`)
-  }
-
-  return getSimpleSwapContract(networkId, library, account).balanceOf(ownerAddress, ethers.utils.bigNumberify(tokenAddress))
 }
 
 // get exchange reserves
