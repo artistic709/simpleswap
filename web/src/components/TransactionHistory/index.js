@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useWeb3Context } from 'web3-react'
 import styled from 'styled-components'
 import { darken } from 'polished'
 import { format } from 'date-fns'
 import { useAllTransactions } from '../../contexts/Transactions'
+import { useWeb3React } from '../../hooks'
 import { Link } from '../../theme'
 import { getEtherscanLink, shortenTransactionHash } from '../../utils'
 
@@ -95,7 +95,7 @@ const Message = styled.div`
 
 export default function TransactionHistory() {
   const { t } = useTranslation()
-  const { networkId, account } = useWeb3Context()
+  const { chainId, account } = useWeb3React()
 
   const allTransactions = useAllTransactions()
 
@@ -115,7 +115,7 @@ export default function TransactionHistory() {
             <div key={transaction.response.hash}>
               <TransactionSubTitle>
                 <TimeSpan>{format(new Date(transaction.timestamp * 1000), "MMM d, Y 'at' HH:mm:ss")} | {' '}</TimeSpan>
-                <Link href={getEtherscanLink(networkId, transaction.response.hash, 'transaction')}>{shortenTransactionHash(transaction.response.hash)}</Link>
+                <Link href={getEtherscanLink(chainId, transaction.response.hash, 'transaction')}>{shortenTransactionHash(transaction.response.hash)}</Link>
               </TransactionSubTitle>
               <TransactionTitle>{transaction.response['CUSTOM_DATA'].comment}</TransactionTitle>
             </div>

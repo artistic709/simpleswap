@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactGA from 'react-ga'
-import { useWeb3Context } from 'web3-react'
 import { ethers } from 'ethers'
 import styled from 'styled-components'
 import { transparentize } from 'polished'
@@ -14,14 +13,20 @@ import TransactionHistory from '../../components/TransactionHistory'
 import ArrowDown from '../../assets/svg/SVGArrowDown'
 import { ReactComponent as Trade } from '../../assets/images/trade.svg'
 
-import { useSimpleSwapContract } from '../../hooks'
+import { useWeb3React, useContract } from '../../hooks'
 import { useTransactionAdder } from '../../contexts/Transactions'
-import { useTokenDetails } from '../../contexts/Tokens'
+import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useFetchAllBalances } from '../../contexts/AllBalances'
-import { useAddressBalance } from '../../contexts/Balances'
-import { useSimpleSwapReserveOf, useSimpleSwapBalanceOf } from '../../contexts/SimpleSwap'
+import { useExchangeReserves } from '../../contexts/Exchanges'
+import { useExchangeBalance } from '../../contexts/ExchangeBalances'
 import { calculateGasMargin, amountFormatter } from '../../utils'
-import { SIMPLESWAP_ADDRESSES, USDX_ADDRESSES } from '../../constants'
+import {
+  USDXSWAP_ADDRESSES,
+  USDX_ADDRESSES,
+  USDTSWAP_ADDRESSES,
+  USDT_ADDRESSES,
+} from '../../constants'
+import EXCHANGE_ABI from '../../constants/abis/exchange.json'
 
 // denominated in bips
 const ALLOWED_SLIPPAGE = ethers.utils.bigNumberify(200)
@@ -220,10 +225,6 @@ function getExchangeRate(inputValue, inputDecimals, outputValue, outputDecimals,
   } catch {}
 }
 
-function getMarketRate(reserveUSDX, reserveToken, decimals, invert = false) {
-  return getExchangeRate(reserveUSDX, 18, reserveToken, decimals, invert)
-}
-
 function calculateSlippageBounds(value) {
   if (value) {
     const offset = value.mul(ALLOWED_SLIPPAGE).div(ethers.utils.bigNumberify(10000))
@@ -239,20 +240,24 @@ function calculateSlippageBounds(value) {
 }
 
 export default function RemoveLiquidity() {
-  const { library, account, active, networkId } = useWeb3Context()
+  const { library, account, active, chainId } = useWeb3React()
   const { t } = useTranslation()
 
   const addTransaction = useTransactionAdder()
 
+  const [inputCurrency, setInputCurrency] = useState(USDX_ADDRESSES[chainId])
   const [outputCurrency, setOutputCurrency] = useState('')
   const [value, setValue] = useState('')
   const [inputError, setInputError] = useState()
   const [valueParsed, setValueParsed] = useState()
 
+  const { symbol: inputSymbol, decimals: inputDecimals } = useTokenDetails(inputCurrency)
+  const { symbol: outputSymbol, decimals: outputDecimals } = useTokenDetails(outputCurrency)
+  
   // parse value
   useEffect(() => {
     try {
-      const parsedValue = ethers.utils.parseUnits(value, 18)
+      const parsedValue = ethers.utils.parseUnits(value, inputDecimals)
       setValueParsed(parsedValue)
     } catch {
       if (value !== '') {
@@ -264,14 +269,18 @@ export default function RemoveLiquidity() {
       setInputError()
       setValueParsed()
     }
-  }, [t, value])
+  }, [inputDecimals, t, value])
 
-  const { symbol, decimals } = useTokenDetails(outputCurrency)
+  const exchangeList = useMemo(() => ({
+    [USDX_ADDRESSES[chainId]]: USDXSWAP_ADDRESSES[chainId],
+    [USDT_ADDRESSES[chainId]]: USDTSWAP_ADDRESSES[chainId],
+  }), [chainId])
+  const exchangeAddress = useMemo(() => exchangeList[inputCurrency], [exchangeList, inputCurrency])
+  const exchange = useContract(exchangeAddress, EXCHANGE_ABI, library)
 
-  const [totalPoolTokens, setTotalPoolTokens] = useState()
-
-  const poolTokenBalance = useSimpleSwapBalanceOf(account, outputCurrency)
-  const { reserveUSDX: exchangeUSDXBalance, reserveToken: exchangeTokenBalance } = useSimpleSwapReserveOf(outputCurrency)
+  const poolTokenBalance = useExchangeBalance(account, exchangeAddress, outputCurrency)
+  
+  const { coinReserve, tokenReserve } = useExchangeReserves(exchangeAddress, outputCurrency)
 
   // input validation
   useEffect(() => {
@@ -284,63 +293,7 @@ export default function RemoveLiquidity() {
     }
   }, [poolTokenBalance, t, valueParsed])
 
-  const exchange = useSimpleSwapContract()
-
-  const ownershipPercentage =
-    poolTokenBalance && totalPoolTokens && !totalPoolTokens.isZero()
-      ? poolTokenBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
-      : undefined
-  const ownershipPercentageFormatted = ownershipPercentage && amountFormatter(ownershipPercentage, 16, 2)
-
-  const USDXOwnShare =
-    exchangeUSDXBalance &&
-    ownershipPercentage &&
-    exchangeUSDXBalance.mul(ownershipPercentage).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
-  const TokenOwnShare =
-    exchangeTokenBalance &&
-    ownershipPercentage &&
-    exchangeTokenBalance.mul(ownershipPercentage).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
-
-  const USDXPer =
-    exchangeUSDXBalance && totalPoolTokens && !totalPoolTokens.isZero()
-      ? exchangeUSDXBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
-      : undefined
-  const tokenPer =
-    exchangeTokenBalance && totalPoolTokens && !totalPoolTokens.isZero()
-      ? exchangeTokenBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
-      : undefined
-
-  const USDXWithdrawn =
-    USDXPer && valueParsed
-      ? USDXPer.mul(valueParsed).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
-      : undefined
-  const tokenWithdrawn =
-    tokenPer && valueParsed
-      ? tokenPer.mul(valueParsed).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
-      : undefined
-
-  const USDXWithdrawnMin = USDXWithdrawn ? calculateSlippageBounds(USDXWithdrawn).minimum : undefined
-  const tokenWithdrawnMin = tokenWithdrawn ? calculateSlippageBounds(tokenWithdrawn).minimum : undefined
-
-  // validate real token reserve
-  const [outputError, setOutputError] = useState()
-  const USDXRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], USDX_ADDRESSES[networkId])
-  const tokenRealReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], outputCurrency)
-  useEffect(() => {
-    if (
-      USDXRealReserve && tokenRealReserve && USDXWithdrawn && tokenWithdrawn &&
-      (USDXRealReserve.lt(USDXWithdrawn) || tokenRealReserve.lt(tokenWithdrawn))
-    ) {
-      setOutputError(t('insufficientReserve'))
-    } else {
-      setOutputError(null)
-    }
-
-    return () => {
-      setOutputError()
-    }
-  }, [USDXRealReserve, USDXWithdrawn, t, tokenRealReserve, tokenWithdrawn])
-
+  const [totalPoolTokens, setTotalPoolTokens] = useState()
   const fetchPoolTokens = useCallback(() => {
     if (exchange) {
       exchange.totalSupply(ethers.utils.bigNumberify(outputCurrency)).then(totalSupply => {
@@ -349,13 +302,51 @@ export default function RemoveLiquidity() {
     }
   }, [exchange, outputCurrency])
   useEffect(() => {
-    fetchPoolTokens()
-    library.on('block', fetchPoolTokens)
-
-    return () => {
-      library.removeListener('block', fetchPoolTokens)
+    if (library) {
+      fetchPoolTokens()
+      library.on('block', fetchPoolTokens)
+  
+      return () => {
+        library.removeListener('block', fetchPoolTokens)
+      }
     }
   }, [fetchPoolTokens, library])
+
+  const ownershipPercentage =
+    poolTokenBalance && totalPoolTokens && !totalPoolTokens.isZero()
+      ? poolTokenBalance.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
+      : undefined
+  const ownershipPercentageFormatted = ownershipPercentage && amountFormatter(ownershipPercentage, 16, 2)
+
+  const coinOwnShare =
+    coinReserve &&
+    ownershipPercentage &&
+    coinReserve.mul(ownershipPercentage).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
+  const tokenOwnShare =
+    tokenReserve &&
+    ownershipPercentage &&
+    tokenReserve.mul(ownershipPercentage).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
+
+  const coinPercentage =
+    coinReserve && totalPoolTokens && !totalPoolTokens.isZero()
+      ? coinReserve.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
+      : undefined
+  const tokenPercentage =
+    tokenReserve && totalPoolTokens && !totalPoolTokens.isZero()
+      ? tokenReserve.mul(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))).div(totalPoolTokens)
+      : undefined
+
+  const coinWithdrawn =
+    coinPercentage && valueParsed
+      ? coinPercentage.mul(valueParsed).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
+      : undefined
+  const tokenWithdrawn =
+    tokenPercentage && valueParsed
+      ? tokenPercentage.mul(valueParsed).div(ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18)))
+      : undefined
+
+  const coinWithdrawnMin = coinWithdrawn ? calculateSlippageBounds(coinWithdrawn).minimum : undefined
+  const tokenWithdrawnMin = tokenWithdrawn ? calculateSlippageBounds(tokenWithdrawn).minimum : undefined
 
   async function onRemoveLiquidity() {
     ReactGA.event({
@@ -368,17 +359,17 @@ export default function RemoveLiquidity() {
     const estimatedGasLimit = await exchange.estimate.removeLiquidity(
       outputCurrency,
       valueParsed,
-      USDXWithdrawnMin,
+      coinWithdrawnMin,
       tokenWithdrawnMin,
       deadline
     )
 
     exchange
-      .removeLiquidity(outputCurrency, valueParsed, USDXWithdrawnMin, tokenWithdrawnMin, deadline, {
+      .removeLiquidity(outputCurrency, valueParsed, coinWithdrawnMin, tokenWithdrawnMin, deadline, {
         gasLimit: calculateGasMargin(estimatedGasLimit, GAS_MARGIN)
       })
       .then(response => {
-        const comment = `Withdraw ${amountFormatter(USDXWithdrawn, 18, 4)} USDx and ${amountFormatter(tokenWithdrawn, decimals, Math.min(decimals, 4))} ${symbol} from pool`
+        const comment = `Withdraw ${amountFormatter(coinWithdrawn, inputDecimals, 4)} ${inputSymbol} and ${amountFormatter(tokenWithdrawn, outputDecimals, Math.min(outputDecimals, 4))} ${outputSymbol} from pool`
         addTransaction(response, { comment })
       })
   }
@@ -398,8 +389,8 @@ export default function RemoveLiquidity() {
         <TransactionInfoTop>
           <SummaryWrapper>
             <SummaryText>
-              {t('youAreRemoving')} {blue(`${amountFormatter(USDXWithdrawn, 18, 4)} USDX`)} {t('and')}{' '}
-              {blue(`${amountFormatter(tokenWithdrawn, decimals, Math.min(decimals, 4))} ${symbol}`)}
+              {t('youAreRemoving')} {blue(`${amountFormatter(coinWithdrawn, inputDecimals, Math.min(outputDecimals, 4))} ${inputSymbol}`)} {t('and')}{' '}
+              {blue(`${amountFormatter(tokenWithdrawn, outputDecimals, Math.min(outputDecimals, 4))} ${outputSymbol}`)}
             </SummaryText>
           </SummaryWrapper>
           <Trade />
@@ -418,8 +409,8 @@ export default function RemoveLiquidity() {
           </SummaryWrapper>
           <SummaryWrapper>
             <SummaryText>
-              {t('tokenWorth')} {strong(amountFormatter(USDXPer, 18, 4))} USDX {t('and')}{' '}
-              {strong(amountFormatter(tokenPer, decimals, Math.min(4, decimals)))} {symbol}
+              {t('tokenWorth')} {strong(amountFormatter(coinPercentage, 18, 4))} ${inputSymbol} {t('and')}{' '}
+              {strong(amountFormatter(tokenPercentage, outputDecimals, Math.min(4, outputDecimals)))} {outputSymbol}
             </SummaryText>
           </SummaryWrapper>
         </TransactionInfoBottom>
@@ -431,10 +422,10 @@ export default function RemoveLiquidity() {
     let contextualInfo = ''
     let isError = false
 
-    if (inputError || outputError) {
-      contextualInfo = inputError || outputError
+    if (inputError) {
+      contextualInfo = inputError
       isError = true
-    } else if (!outputCurrency || outputCurrency === USDX_ADDRESSES[networkId]) {
+    } else if (!outputCurrency || outputCurrency === inputCurrency) {
       contextualInfo = t('selectTokenCont')
     } else if (!valueParsed) {
       contextualInfo = t('enterValueCont')
@@ -460,18 +451,29 @@ export default function RemoveLiquidity() {
   }
 
   const isActive = active && account
-  const isValid = !inputError && !outputError
+  const isValid = !inputError
 
-  const marketRate = getMarketRate(exchangeUSDXBalance, exchangeTokenBalance, decimals)
+  const marketRate = getExchangeRate(coinReserve, inputDecimals, tokenReserve, outputDecimals)
 
   const allBalances = useFetchAllBalances()
+  const allTokens = useAllTokenDetails()
+
 
   return (
     <>
       <CurrencyInputPanel
+        title={t('reserveToken')}
+        backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
+        inputBackgroundColor='#1460E8'
+        selectedTokenAddress={inputCurrency}
+        excludeTokens={Object.keys(allTokens).filter(token => !(token === USDX_ADDRESSES[chainId] || token === USDT_ADDRESSES[chainId]))}
+        onCurrencySelected={setInputCurrency}
+        disableValueInput
+      />
+      <CurrencyInputPanel
         title={t('poolTokens')}
         allBalances={allBalances}
-        extraText={poolTokenBalance && formatBalance(amountFormatter(poolTokenBalance, 18, 3))}
+        extraText={poolTokenBalance && formatBalance(amountFormatter(poolTokenBalance, inputDecimals, 3))}
         extraTextClickHander={() => {
           if (poolTokenBalance) {
             const valueToSet = poolTokenBalance
@@ -485,9 +487,9 @@ export default function RemoveLiquidity() {
         value={value}
         errorMessage={inputError}
         selectedTokenAddress={outputCurrency}
-        backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
-        inputBackgroundColor='#1460E8'
-        excludeTokens={['0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371']}
+        backgroundColor='linear-gradient(90deg,rgba(251,152,54,1),rgba(254,148,44,1))'
+        inputBackgroundColor='#ED7C0E'
+        excludeTokens={[inputCurrency]}
       />
       <OversizedPanel>
         <DownArrowBackground>
@@ -497,17 +499,17 @@ export default function RemoveLiquidity() {
       <CurrencyInputPanel
         title={t('output')}
         allBalances={allBalances}
-        description={!!(USDXWithdrawn && tokenWithdrawn) ? `(${t('estimated')})` : ''}
+        description={!!(coinWithdrawn && tokenWithdrawn) ? `(${t('estimated')})` : ''}
         key="remove-liquidity-input"
         renderInput={() =>
-          !!(USDXWithdrawn && tokenWithdrawn) ? (
+          !!(coinWithdrawn && tokenWithdrawn) ? (
             <RemoveLiquidityOutput>
               <RemoveLiquidityOutputText>
-                {`${amountFormatter(USDXWithdrawn, 18, 4, false)} USDX`}
+                {`${amountFormatter(coinWithdrawn, inputDecimals, Math.min(4, outputDecimals), false)} ${inputSymbol}`}
               </RemoveLiquidityOutputText>
               <RemoveLiquidityOutputPlus> + </RemoveLiquidityOutputPlus>
               <RemoveLiquidityOutputText>
-                {`${amountFormatter(tokenWithdrawn, decimals, Math.min(4, decimals))} ${symbol}`}
+                {`${amountFormatter(tokenWithdrawn, outputDecimals, Math.min(4, outputDecimals))} ${outputSymbol}`}
               </RemoveLiquidityOutputText>
             </RemoveLiquidityOutput>
           ) : (
@@ -518,7 +520,7 @@ export default function RemoveLiquidity() {
         disableUnlock
         renderExchangeRate={() => (
           <ExchangeRateWrapper>
-            {marketRate && <span>{`1 USDX = ${amountFormatter(marketRate, 18, 4)} ${symbol}`}</span>}
+            {marketRate && <span>{`1 ${inputSymbol} = ${amountFormatter(marketRate, 18, 4)} ${outputSymbol}`}</span>}
           </ExchangeRateWrapper>
         )}
       />
@@ -526,15 +528,15 @@ export default function RemoveLiquidity() {
         <DataPanel>
           <DataPanelItem>
             <div className="title">{t('currentPoolSize')}</div>
-            {exchangeUSDXBalance && exchangeTokenBalance ? (
+            {coinReserve && tokenReserve ? (
               <>
                 <div className="data-row">
-                  <div className="data-key">USDx</div>
-                  <div className="data-value">{amountFormatter(exchangeUSDXBalance, 18, 4)}</div>
+                  <div className="data-key">{inputSymbol}</div>
+                  <div className="data-value">{amountFormatter(coinReserve, inputDecimals, Math.min(4, inputDecimals))}</div>
                 </div>
                 <div className="data-row">
-                  <div className="data-key">{symbol}</div>
-                  <div className="data-value">{amountFormatter(exchangeTokenBalance, decimals, Math.min(4, decimals))}</div>
+                  <div className="data-key">{outputSymbol}</div>
+                  <div className="data-value">{amountFormatter(tokenReserve, outputDecimals, Math.min(4, outputDecimals))}</div>
                 </div>
               </>
             ) : (
@@ -546,15 +548,15 @@ export default function RemoveLiquidity() {
               {t('yourPoolShare')} {' '}
               <span className="strong-title">({ownershipPercentageFormatted && ownershipPercentageFormatted}%)</span>
             </div>
-            {USDXOwnShare && TokenOwnShare ? (
+            {coinOwnShare && tokenOwnShare ? (
               <>
                 <div className="data-row">
-                  <div className="data-key">USDx</div>
-                  <div className="data-value">{amountFormatter(USDXOwnShare, 18, 4)}</div>
+                  <div className="data-key">{inputSymbol}</div>
+                  <div className="data-value">{amountFormatter(coinOwnShare, inputDecimals, Math.min(4, inputDecimals))}</div>
                 </div>
                 <div className="data-row">
-                  <div className="data-key">{symbol}</div>
-                  <div className="data-value">{amountFormatter(TokenOwnShare, decimals, Math.min(4, decimals))}</div>
+                  <div className="data-key">{outputSymbol}</div>
+                  <div className="data-value">{amountFormatter(tokenOwnShare, outputDecimals, Math.min(4, outputDecimals))}</div>
                 </div>
               </>
             ) : (

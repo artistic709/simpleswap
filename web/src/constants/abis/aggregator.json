@@ -1,0 +1,104 @@
+[
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "exchange",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "fromToken",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "fromAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "toToken",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "minReceived",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "deadline",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			}
+		],
+		"name": "tradeInput",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "exchange",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "fromToken",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "maxSpent",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "toToken",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "toAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "deadline",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			}
+		],
+		"name": "tradeOutput",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]

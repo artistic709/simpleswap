@@ -1,14 +1,14 @@
 import React from 'react'
 import styled, { keyframes } from 'styled-components'
-import { useWeb3Context } from 'web3-react'
-import Copy from './Copy'
+import { Check } from 'react-feather'
+import { transparentize } from 'polished'
 
+import Copy from './Copy'
+import { useWeb3React } from '../../hooks'
 import { getEtherscanLink, shortenTransactionHash } from '../../utils'
 import { Link, Spinner } from '../../theme'
 import Circle from '../../assets/images/circle.svg'
-import { Check } from 'react-feather'
 
-import { transparentize } from 'polished'
 
 const TransactionStatusWrapper = styled.div`
   display: flex;
@@ -96,20 +96,20 @@ const TransactionComment = styled.div`
 `
 
 export default function Transaction({ hash, pending, comment }) {
-  const { networkId } = useWeb3Context()
+  const { chainId } = useWeb3React()
 
   return (
     <TransactionWrapper key={hash}>
       <TransactionInfoWrapper>
         <TransactionStatusWrapper>
-          <Link href={getEtherscanLink(networkId, hash, 'transaction')}>{shortenTransactionHash(hash, 6)} ↗ </Link>
+          <Link href={getEtherscanLink(chainId, hash, 'transaction')}>{shortenTransactionHash(hash, 6)} ↗ </Link>
           <Copy toCopy={hash} />
         </TransactionStatusWrapper>
         {comment && <TransactionComment>{comment}</TransactionComment>}
       </TransactionInfoWrapper>
       {pending ? (
         <ButtonWrapper pending={pending}>
-          <Link href={getEtherscanLink(networkId, hash, 'transaction')}>
+          <Link href={getEtherscanLink(chainId, hash, 'transaction')}>
             <TransactionState pending={pending}>
               <Spinner src={Circle} id="pending" />
               <TransactionStatusText>Pending</TransactionStatusText>
@@ -118,7 +118,7 @@ export default function Transaction({ hash, pending, comment }) {
         </ButtonWrapper>
       ) : (
         <ButtonWrapper pending={pending}>
-          <Link href={getEtherscanLink(networkId, hash, 'transaction')}>
+          <Link href={getEtherscanLink(chainId, hash, 'transaction')}>
             <TransactionState pending={pending}>
               <Check size="16" />
               <TransactionStatusText>Confirmed</TransactionStatusText>

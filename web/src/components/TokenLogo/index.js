@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { useWeb3Context } from 'web3-react'
 import styled from 'styled-components'
+import { useWeb3React } from '../../hooks'
 import { getNetworkName } from '../../utils'
 
 import { ReactComponent as DefaultTokenLogo } from '../../assets/images/default-token-logo.svg'
@@ -28,8 +28,8 @@ const StyledDefaultTokenLogo = styled(DefaultTokenLogo)`
 
 export default function TokenLogo({ address, size = '1.5rem', ...rest }) {
   const [error, setError] = useState(false)
-  const { networkId } = useWeb3Context()
-  const networkName = getNetworkName(networkId)
+  const { chainId } = useWeb3React()
+  const networkName = getNetworkName(chainId)
 
   let path = ''
   if (address === 'ETH') {

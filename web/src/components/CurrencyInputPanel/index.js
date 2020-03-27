@@ -2,7 +2,6 @@ import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ethers } from 'ethers'
 import { BigNumber } from '@uniswap/sdk'
-import { useWeb3Context } from 'web3-react'
 import styled from 'styled-components'
 import escapeStringRegex from 'escape-string-regexp'
 import { darken } from 'polished'
@@ -22,7 +21,6 @@ import TokenLogo from '../TokenLogo'
 import { useTransactionAdder, usePendingApproval } from '../../contexts/Transactions'
 import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useUSDPrice } from '../../contexts/Application'
-import { SIMPLESWAP_ADDRESSES } from '../../constants'
 
 const GAS_MARGIN = ethers.utils.bigNumberify(1000)
 
@@ -356,7 +354,9 @@ export default function CurrencyInputPanel({
   errorMessage,
   disableUnlock,
   disableTokenSelect,
+  disableValueInput,
   selectedTokenAddress = '',
+  selectedTokenExchangeAddress = '',
   showUnlock,
   value,
   renderExchangeRate,
@@ -365,12 +365,8 @@ export default function CurrencyInputPanel({
   inputBackgroundColor
 }) {
   const { t } = useTranslation()
-
-  const { networkId } = useWeb3Context()
   
   const tokenContract = useTokenContract(selectedTokenAddress)
-  
-  const selectedTokenExchangeAddress = SIMPLESWAP_ADDRESSES[networkId]
   
   const pendingApproval = usePendingApproval(selectedTokenAddress)
   
@@ -458,27 +454,29 @@ export default function CurrencyInputPanel({
             </CurrencySelect>
             {menuIsOpen && <Mask />}
           </FlexRow>
-          <InputWrapper backgroundColor={inputBackgroundColor}>
-            {renderUnlockButton()}
-            <Input
-              type="number"
-              min="0"
-              error={!!errorMessage}
-              placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
-              step="0.000000000000000001"
-              onChange={onChange}
-              onKeyPress={e => {
-                const charCode = e.which ? e.which : e.keyCode
+          {!disableValueInput && (
+            <InputWrapper backgroundColor={inputBackgroundColor}>
+              {renderUnlockButton()}
+              <Input
+                type="number"
+                min="0"
+                error={!!errorMessage}
+                placeholder={selectedTokenAddress && `Amount in ${allTokens[selectedTokenAddress].symbol}`}
+                step="0.000000000000000001"
+                onChange={onChange}
+                onKeyPress={e => {
+                  const charCode = e.which ? e.which : e.keyCode
 
-                // Prevent 'minus' character
-                if (charCode === 45) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }
-              }}
-              value={value}
-            />
-          </InputWrapper>
+                  // Prevent 'minus' character
+                  if (charCode === 45) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }
+                }}
+                value={value}
+              />
+            </InputWrapper>
+          )}
         </InputRow>
       </>
     )

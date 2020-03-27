@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useMemo, useCallback, useEffect } from 'react'
-import { useWeb3Context } from 'web3-react'
 
+import { useWeb3React } from '../hooks'
 import {
   isAddress,
   getTokenName,
@@ -53,6 +53,11 @@ const INITIAL_TOKENS_CONTEXT = {
       [SYMBOL]: 'USDx',
       [DECIMALS]: 18
     },
+    '0xe668af4AD014334670c029e59c6Ff57eBBDe30f6': {
+      [NAME]: 'Tether USD',
+      [SYMBOL]: 'USDT',
+      [DECIMALS]: 6
+    }
   }
 }
 
@@ -65,11 +70,11 @@ function useTokensContext() {
 function reducer(state, { type, payload }) {
   switch (type) {
     case UPDATE: {
-      const { networkId, tokenAddress, name, symbol, decimals } = payload
+      const { chainId, tokenAddress, name, symbol, decimals } = payload
       return {
         ...state,
-        [networkId]: {
-          ...(safeAccess(state, [networkId]) || {}),
+        [chainId]: {
+          ...(safeAccess(state, [chainId]) || {}),
           [tokenAddress]: {
             [NAME]: name,
             [SYMBOL]: symbol,
@@ -87,8 +92,8 @@ function reducer(state, { type, payload }) {
 export default function Provider({ children }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_TOKENS_CONTEXT)
 
-  const update = useCallback((networkId, tokenAddress, name, symbol, decimals, exchangeAddress) => {
-    dispatch({ type: UPDATE, payload: { networkId, tokenAddress, name, symbol, decimals, exchangeAddress } })
+  const update = useCallback((chainId, tokenAddress, name, symbol, decimals, exchangeAddress) => {
+    dispatch({ type: UPDATE, payload: { chainId, tokenAddress, name, symbol, decimals, exchangeAddress } })
   }, [])
 
   return (
@@ -99,10 +104,10 @@ export default function Provider({ children }) {
 }
 
 export function useTokenDetails(tokenAddress) {
-  const { networkId, library } = useWeb3Context()
+  const { chainId, library } = useWeb3React()
 
   const [state, { update }] = useTokensContext()
-  const allTokensInNetwork = { ...(safeAccess(state, [networkId]) || {}) }
+  const allTokensInNetwork = { ...(safeAccess(state, [chainId]) || {}) }
   const { [NAME]: name, [SYMBOL]: symbol, [DECIMALS]: decimals } =
     safeAccess(allTokensInNetwork, [tokenAddress]) || {}
 
@@ -110,7 +115,7 @@ export function useTokenDetails(tokenAddress) {
     if (
       isAddress(tokenAddress) &&
       (name === undefined || symbol === undefined || decimals === undefined ) &&
-      (networkId || networkId === 0) &&
+      (chainId || chainId === 0) &&
       library
     ) {
       let stale = false
@@ -122,7 +127,7 @@ export function useTokenDetails(tokenAddress) {
       Promise.all([namePromise, symbolPromise, decimalsPromise]).then(
         ([resolvedName, resolvedSymbol, resolvedDecimals]) => {
           if (!stale && resolvedName && resolvedSymbol && resolvedDecimals) {
-            update(networkId, tokenAddress, resolvedName, resolvedSymbol, resolvedDecimals)
+            update(chainId, tokenAddress, resolvedName, resolvedSymbol, resolvedDecimals)
           }
         }
       )
@@ -130,16 +135,16 @@ export function useTokenDetails(tokenAddress) {
         stale = true
       }
     }
-  }, [tokenAddress, name, symbol, decimals, networkId, library, update])
+  }, [tokenAddress, name, symbol, decimals, chainId, library, update])
 
   return { name, symbol, decimals }
 }
 
 export function useAllTokenDetails(requireExchange = false) {
-  const { networkId } = useWeb3Context()
+  const { chainId } = useWeb3React()
 
   const [state] = useTokensContext()
-  const tokenDetails = { ...(safeAccess(state, [networkId]) || {}) }
+  const tokenDetails = { ...(safeAccess(state, [chainId]) || {}) }
 
   return tokenDetails
 }

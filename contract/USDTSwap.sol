@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-import "ERC1155Adapter-flat.sol";
+import "./ERC1155Adapter-flat.sol";
 
 contract Ownable {
     address public owner;
@@ -117,8 +117,9 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
     uint256 public totalCoinStored;
     uint256 public globalIndex = 1e18;
     uint256 public feeRate = 3000000000000000;
-    address public coin = address(0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371);
-
+    
+    // USDT
+    address public coin = address(0xdac17f958d2ee523a2206206994597c13d831ec7);
 
     /***********************************|
     |        Dispatcher Functions       |
@@ -647,7 +648,8 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
             return liquidity_minted;
 
         } else {
-            require(reserve_added >= 1000000000);
+            // minimum initial reserve of USDT is 0.001
+            require(reserve_added >= 1000);
             uint256 token_amount = max_tokens;
             uint256 initial_liquidity = reserve_added;
 

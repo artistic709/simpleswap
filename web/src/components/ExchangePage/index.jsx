@@ -2,7 +2,6 @@ import React, { useState, useReducer, useEffect } from 'react'
 import ReactGA from 'react-ga'
 
 import { useTranslation } from 'react-i18next'
-import { useWeb3Context } from 'web3-react'
 
 import { ethers } from 'ethers'
 import styled from 'styled-components'
@@ -15,20 +14,29 @@ import TransactionDetails from '../TransactionDetails'
 import TransactionHistory from '../TransactionHistory'
 import ArrowSwap from '../../assets/svg/SVGArrowSwap'
 import { amountFormatter, calculateGasMargin } from '../../utils'
-import { useSimpleSwapContract } from '../../hooks'
+import { useWeb3React, useContract } from '../../hooks'
 import { useTokenDetails, useAllTokenDetails } from '../../contexts/Tokens'
 import { useTransactionAdder, useHasPendingTransaction } from '../../contexts/Transactions'
 import { useAddressBalance } from '../../contexts/Balances'
-import { useSimpleSwapReserveOf } from '../../contexts/SimpleSwap'
 import { useFetchAllBalances } from '../../contexts/AllBalances'
 import { useAddressAllowance } from '../../contexts/Allowances'
-import { SIMPLESWAP_ADDRESSES, USDX_ADDRESSES } from '../../constants'
+import { useExchangeReserves } from '../../contexts/Exchanges'
+import {
+  AGGREGATOR_ADDRESSES,
+  USDXSWAP_ADDRESSES,
+  USDX_ADDRESSES,
+  USDX_DECIMALS,
+  USDTSWAP_ADDRESSES,
+  USDT_ADDRESSES,
+  USDT_DECIMALS,
+} from '../../constants'
+import AGGREGATOR_ABI from '../../constants/abis/aggregator.json'
 
 const INPUT = 0
 const OUTPUT = 1
 
-const USDX_TO_TOKEN = 0
-const TOKEN_TO_USDX = 1
+const COIN_TO_TOKEN = 0
+const TOKEN_TO_COIN = 1
 const TOKEN_TO_TOKEN = 2
 
 // denominated in bips
@@ -89,20 +97,32 @@ function calculateSlippageBounds(value, token = false, tokenAllowedSlippage, all
   }
 }
 
-function getSwapType(inputCurrency, outputCurrency, networkId) {
-  if (!inputCurrency || !outputCurrency) {
+// TODO: How if swap type if  
+function getSwapType(inputCurrency, outputCurrency, chainId, exchangeAddress) {
+  if (!inputCurrency || !outputCurrency || !exchangeAddress) {
     return null
-  } else if (inputCurrency === USDX_ADDRESSES[networkId]) {
-    return USDX_TO_TOKEN
-  } else if (outputCurrency === USDX_ADDRESSES[networkId]) {
-    return TOKEN_TO_USDX
-  } else {
-    return TOKEN_TO_TOKEN
+  } 
+  if (exchangeAddress === USDXSWAP_ADDRESSES[chainId]) {
+    if (inputCurrency === USDX_ADDRESSES[chainId]) {
+      return COIN_TO_TOKEN
+    } else if (outputCurrency === USDX_ADDRESSES[chainId]) {
+      return TOKEN_TO_COIN
+    } else {
+      return TOKEN_TO_TOKEN
+    }
+  } else if (exchangeAddress === USDTSWAP_ADDRESSES[chainId]) {
+    if (inputCurrency === USDT_ADDRESSES[chainId]) {
+      return COIN_TO_TOKEN
+    } else if (outputCurrency === USDT_ADDRESSES[chainId]) {
+      return TOKEN_TO_COIN
+    } else {
+      return TOKEN_TO_TOKEN
+    }
   }
 }
 
 // this mocks the getInputPrice function, and calculates the required output
-function calculateUSDXTokenOutputFromInput(inputAmount, inputReserve, outputReserve) {
+function calculateOutputFromInput(inputAmount, inputReserve, outputReserve) {
   const inputAmountWithFee = inputAmount.mul(ethers.utils.bigNumberify(997))
   const numerator = inputAmountWithFee.mul(outputReserve)
   const denominator = inputReserve.mul(ethers.utils.bigNumberify(1000)).add(inputAmountWithFee)
@@ -110,10 +130,55 @@ function calculateUSDXTokenOutputFromInput(inputAmount, inputReserve, outputRese
 }
 
 // this mocks the getOutputPrice function, and calculates the required input
-function calculateUSDXTokenInputFromOutput(outputAmount, inputReserve, outputReserve) {
+function calculateInputFromOutput(outputAmount, inputReserve, outputReserve) {
   const numerator = inputReserve.mul(outputAmount).mul(ethers.utils.bigNumberify(1000))
   const denominator = outputReserve.sub(outputAmount).mul(ethers.utils.bigNumberify(997))
-  return numerator.div(denominator).add(ethers.constants.One)
+  return numerator.div(denominator)
+}
+
+function calculateDependentValue(amount, inputCoinReserve, inputTokenReserve, outputCoinReserve, outputTokenReserve, swapType, independentField) {
+  let result
+  if (swapType === COIN_TO_TOKEN) {
+    if (amount && outputCoinReserve && outputTokenReserve) {
+      result = independentField === INPUT
+        ? calculateOutputFromInput(amount, outputCoinReserve, outputTokenReserve)
+        : calculateInputFromOutput(amount, outputCoinReserve, outputTokenReserve)
+    }
+  } else if (swapType === TOKEN_TO_COIN) {
+    if (amount && inputCoinReserve && inputTokenReserve) {
+      result = independentField === INPUT
+        ? calculateOutputFromInput(amount, inputTokenReserve, inputCoinReserve)
+        : calculateInputFromOutput(amount, inputTokenReserve, inputCoinReserve)
+    }
+  } else {
+    if (amount && inputCoinReserve && inputTokenReserve && outputCoinReserve && outputTokenReserve) {
+      if (independentField === INPUT) {
+        const intermediateValue = calculateOutputFromInput(amount, inputTokenReserve, inputCoinReserve)
+        if (intermediateValue.isZero()) {
+          result = ethers.constants.Zero
+        } else {
+          result = calculateOutputFromInput(
+            intermediateValue,
+            outputCoinReserve,
+            outputTokenReserve,
+          )
+        }
+      } else {
+        const intermediateValue = calculateInputFromOutput(amount, outputTokenReserve, outputCoinReserve)
+        if (intermediateValue.isZero()) {
+          result = ethers.constants.Zero
+        } else {
+          result = calculateInputFromOutput(
+            intermediateValue,
+            inputCoinReserve,
+            inputTokenReserve,
+          )
+        }
+      }
+    }
+  }
+
+  return result
 }
 
 function getInitialSwapState(initialCurrencies) {
@@ -210,22 +275,23 @@ function getExchangeRate(inputValue, inputDecimals, outputValue, outputDecimals,
 
 function getMarketRate(
   swapType,
-  inputReserveUSDX,
+  coinDecimals,
+  inputReserveCoin,
   inputReserveToken,
-  inputDecimals,
-  outputReserveUSDX,
+  inputTokenDecimals,
+  outputReserveCoin,
   outputReserveToken,
-  outputDecimals,
+  outputTokenDecimals,
   invert = false
 ) {
-  if (swapType === USDX_TO_TOKEN) {
-    return getExchangeRate(outputReserveUSDX, 18, outputReserveToken, outputDecimals, invert)
-  } else if (swapType === TOKEN_TO_USDX) {
-    return getExchangeRate(inputReserveToken, inputDecimals, inputReserveUSDX, 18, invert)
+  if (swapType === COIN_TO_TOKEN) {
+    return getExchangeRate(outputReserveCoin, coinDecimals, outputReserveToken, outputTokenDecimals, invert)
+  } else if (swapType === TOKEN_TO_COIN) {
+    return getExchangeRate(inputReserveToken, inputTokenDecimals, inputReserveCoin, coinDecimals, invert)
   } else if (swapType === TOKEN_TO_TOKEN) {
     const factor = ethers.utils.bigNumberify(10).pow(ethers.utils.bigNumberify(18))
-    const firstRate = getExchangeRate(inputReserveToken, inputDecimals, inputReserveUSDX, 18)
-    const secondRate = getExchangeRate(outputReserveUSDX, 18, outputReserveToken, outputDecimals)
+    const firstRate = getExchangeRate(inputReserveToken, inputTokenDecimals, inputReserveCoin, coinDecimals)
+    const secondRate = getExchangeRate(outputReserveCoin, coinDecimals, outputReserveToken, outputTokenDecimals)
     try {
       return !!(firstRate && secondRate) ? firstRate.mul(secondRate).div(factor) : undefined
     } catch {}
@@ -234,7 +300,7 @@ function getMarketRate(
 
 export default function ExchangePage({ initialCurrency }) {
   const { t } = useTranslation()
-  const { account, networkId } = useWeb3Context()
+  const { account, chainId } = useWeb3React()
 
   const addTransaction = useTransactionAdder()
   const hasPendingTransaction = useHasPendingTransaction()
@@ -255,7 +321,7 @@ export default function ExchangePage({ initialCurrency }) {
   const allTokens = useAllTokenDetails()
 
   const initialCurrencies = {
-    inputCurrency: USDX_ADDRESSES[networkId],
+    inputCurrency: USDX_ADDRESSES[chainId],
     outputCurrency: initialCurrency || Object.keys(allTokens)[0]
   }
 
@@ -267,9 +333,7 @@ export default function ExchangePage({ initialCurrency }) {
   const [recipient, setRecipient] = useState({ address: '', name: '' })
   const [recipientError, setRecipientError] = useState()
 
-  // get swap type from the currency types
-  const swapType = getSwapType(inputCurrency, outputCurrency, networkId)
-
+  
   // get decimals and exchange address for each of the currency types
   const { symbol: inputSymbol, decimals: inputDecimals } = useTokenDetails(
     inputCurrency
@@ -278,15 +342,21 @@ export default function ExchangePage({ initialCurrency }) {
     outputCurrency
   )
 
-  const contract = useSimpleSwapContract()
+  const aggregatorContract = useContract(AGGREGATOR_ADDRESSES[chainId], AGGREGATOR_ABI)
+  const [exchangeAddress, setExchangeAddress] = useState()
+
+  const swapType = getSwapType(inputCurrency, outputCurrency, chainId, exchangeAddress)
 
   // get input allowance
-  const inputAllowance = useAddressAllowance(account, inputCurrency, SIMPLESWAP_ADDRESSES[networkId])
+  const inputAllowance = useAddressAllowance(account, inputCurrency, AGGREGATOR_ADDRESSES[chainId])
 
   // fetch reserves for each of the currency types
-  const { reserveUSDX: inputReserveUSDX, reserveToken: inputReserveToken } = useSimpleSwapReserveOf(inputCurrency)
-  const { reserveUSDX: outputReserveUSDX, reserveToken: outputReserveToken } = useSimpleSwapReserveOf(outputCurrency)
-  const realTokenReserve = useAddressBalance(SIMPLESWAP_ADDRESSES[networkId], outputCurrency)
+  const { coinReserve: inputCoinReserveAtUsdxSwap, tokenReserve: inputTokenReserveAtUsdxSwap } = useExchangeReserves(USDXSWAP_ADDRESSES[chainId], inputCurrency)
+  const { coinReserve: outputCoinReserveAtUsdxSwap, tokenReserve: outputTokenReserveAtUsdxSwap } = useExchangeReserves(USDXSWAP_ADDRESSES[chainId], outputCurrency)
+  
+  const { coinReserve: inputCoinReserveAtUsdtSwap, tokenReserve: inputTokenReserveAtUsdtSwap } = useExchangeReserves(USDTSWAP_ADDRESSES[chainId], inputCurrency)
+  const { coinReserve: outputCoinReserveAtUsdtSwap, tokenReserve: outputTokenReserveAtUsdtSwap } = useExchangeReserves(USDTSWAP_ADDRESSES[chainId], outputCurrency)
+  
 
   // get balances for each of the currency types
   const inputBalance = useAddressBalance(account, inputCurrency)
@@ -337,7 +407,7 @@ export default function ExchangePage({ initialCurrency }) {
   }, [independentValue, independentDecimals, t])
 
   // calculate slippage from target rate
-  const { minimum: dependentValueMinumum, maximum: dependentValueMaximum } = calculateSlippageBounds(
+  const { minimum: dependentValueMinimum, maximum: dependentValueMaximum } = calculateSlippageBounds(
     dependentValue,
     swapType === TOKEN_TO_TOKEN,
     tokenAllowedSlippageBig,
@@ -367,141 +437,116 @@ export default function ExchangePage({ initialCurrency }) {
     }
   }, [independentField, independentValueParsed, dependentValueMaximum, inputBalance, inputCurrency, inputAllowance, t])
 
-  // validate output reserve
-  const [outputError, setOutputError] = useState()
-  useEffect(() => {
-    const outputValueCalculation = independentField === INPUT ? dependentValueMaximum : independentValueParsed
-    if (realTokenReserve && outputValueCalculation && realTokenReserve.lt(outputValueCalculation)) {
-      setOutputError(t('insufficientReserve'))
-    } else {
-      setOutputError(null)
-    }
-
-    return () => {
-      setOutputError()
-    }
-  }, [dependentValueMaximum, independentField, independentValueParsed, realTokenReserve, t])
-
   // calculate dependent value
   useEffect(() => {
     const amount = independentValueParsed
 
-    if (swapType === USDX_TO_TOKEN) {
-      const reserveUSDX = outputReserveUSDX
-      const reserveToken = outputReserveToken
-
-      if (amount && reserveUSDX && reserveToken) {
-        try {
-          const calculatedDependentValue =
-            independentField === INPUT
-              ? calculateUSDXTokenOutputFromInput(amount, reserveUSDX, reserveToken)
-              : calculateUSDXTokenInputFromOutput(amount, reserveUSDX, reserveToken)
-
-          if (calculatedDependentValue.lte(ethers.constants.Zero)) {
-            throw Error()
-          }
-
-          dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: calculatedDependentValue })
-        } catch {
-          setIndependentError(t('insufficientLiquidity'))
+    if (amount) {
+      // using USDXSwap exchange
+      const swapTypeOnUsdx = getSwapType(inputCurrency, outputCurrency, chainId, USDXSWAP_ADDRESSES[chainId])
+      const dependentValueOnUsdx = (
+        inputCoinReserveAtUsdxSwap &&
+        inputTokenReserveAtUsdxSwap &&
+        outputCoinReserveAtUsdxSwap &&
+        outputTokenReserveAtUsdxSwap
+      )
+        ? calculateDependentValue(
+            amount,
+            inputCoinReserveAtUsdxSwap,
+            inputTokenReserveAtUsdxSwap,
+            outputCoinReserveAtUsdxSwap,
+            outputTokenReserveAtUsdxSwap,
+            swapTypeOnUsdx,
+            independentField,
+          )
+        : ethers.constants.Zero
+        
+      // using USDTSwap exchange
+      const swapTypeOnUsdt = getSwapType(inputCurrency, outputCurrency, chainId, USDTSWAP_ADDRESSES[chainId])
+      let dependentValueOnUsdt = (
+        inputCoinReserveAtUsdtSwap &&
+        inputTokenReserveAtUsdtSwap &&
+        outputCoinReserveAtUsdtSwap &&
+        outputTokenReserveAtUsdtSwap
+      ) 
+        ? calculateDependentValue(
+            amount,
+            inputCoinReserveAtUsdtSwap,
+            inputTokenReserveAtUsdtSwap,
+            outputCoinReserveAtUsdtSwap,
+            outputTokenReserveAtUsdtSwap,
+            swapTypeOnUsdt,
+            independentField,
+          )
+        : ethers.constants.Zero
+  
+      let dependentValue
+      if (independentField === INPUT) {
+        if (dependentValueOnUsdx.gt(dependentValueOnUsdt)) {
+          dependentValue = dependentValueOnUsdx
+          setExchangeAddress(USDXSWAP_ADDRESSES[chainId])
+        } else {
+          dependentValue = dependentValueOnUsdt
+          setExchangeAddress(USDTSWAP_ADDRESSES[chainId])
         }
-        return () => {
-          dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: '' })
-        }
-      }
-    } else if (swapType === TOKEN_TO_USDX) {
-      const reserveUSDX = inputReserveUSDX
-      const reserveToken = inputReserveToken
-
-      if (amount && reserveUSDX && reserveToken) {
-        try {
-          const calculatedDependentValue =
-            independentField === INPUT
-              ? calculateUSDXTokenOutputFromInput(amount, reserveToken, reserveUSDX)
-              : calculateUSDXTokenInputFromOutput(amount, reserveToken, reserveUSDX)
-
-          if (calculatedDependentValue.lte(ethers.constants.Zero)) {
-            throw Error()
-          }
-
-          dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: calculatedDependentValue })
-        } catch {
-          setIndependentError(t('insufficientLiquidity'))
-        }
-        return () => {
-          dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: '' })
-        }
-      }
-    } else if (swapType === TOKEN_TO_TOKEN) {
-      const reserveUSDXFirst = inputReserveUSDX
-      const reserveTokenFirst = inputReserveToken
-
-      const reserveUSDXSecond = outputReserveUSDX
-      const reserveTokenSecond = outputReserveToken
-
-      if (amount && reserveUSDXFirst && reserveTokenFirst && reserveUSDXSecond && reserveTokenSecond) {
-        try {
-          if (independentField === INPUT) {
-            const intermediateValue = calculateUSDXTokenOutputFromInput(amount, reserveTokenFirst, reserveUSDXFirst)
-            if (intermediateValue.lte(ethers.constants.Zero)) {
-              throw Error()
-            }
-            const calculatedDependentValue = calculateUSDXTokenOutputFromInput(
-              intermediateValue,
-              reserveUSDXSecond,
-              reserveTokenSecond
-            )
-            if (calculatedDependentValue.lte(ethers.constants.Zero)) {
-              throw Error()
-            }
-            dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: calculatedDependentValue })
+      } else {
+        if (dependentValueOnUsdx.lte(ethers.constants.Zero) && dependentValueOnUsdt.lte(ethers.constants.Zero)) {
+          dependentValue = ethers.constants.Zero
+        } else if (!dependentValueOnUsdx.lte(ethers.constants.Zero) && dependentValueOnUsdt.lte(ethers.constants.Zero)) {
+          dependentValue = dependentValueOnUsdx
+          setExchangeAddress(USDXSWAP_ADDRESSES[chainId])
+        } else if (dependentValueOnUsdx.lte(ethers.constants.Zero) && !dependentValueOnUsdt.lte(ethers.constants.Zero)) {
+          dependentValue = dependentValueOnUsdt
+          setExchangeAddress(USDTSWAP_ADDRESSES[chainId])
+        } else {
+          if (dependentValueOnUsdx.lt(dependentValueOnUsdt)) {
+            dependentValue = dependentValueOnUsdx
+            setExchangeAddress(USDXSWAP_ADDRESSES[chainId])
           } else {
-            const intermediateValue = calculateUSDXTokenInputFromOutput(amount, reserveUSDXSecond, reserveTokenSecond)
-            if (intermediateValue.lte(ethers.constants.Zero)) {
-              throw Error()
-            }
-            const calculatedDependentValue = calculateUSDXTokenInputFromOutput(
-              intermediateValue,
-              reserveTokenFirst,
-              reserveUSDXFirst
-            )
-            if (calculatedDependentValue.lte(ethers.constants.Zero)) {
-              throw Error()
-            }
-            dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: calculatedDependentValue })
+            dependentValue = dependentValueOnUsdt
+            setExchangeAddress(USDTSWAP_ADDRESSES[chainId])
           }
-        } catch {
-          setIndependentError(t('insufficientLiquidity'))
         }
-        return () => {
-          dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: '' })
-        }
+      }
+  
+      if (dependentValue.lte(ethers.constants.Zero)) {
+        setIndependentError(t('insufficientLiquidity'))
+      } else {
+        setIndependentError(null)
+        dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: dependentValue })
+      }
+      
+      return () => {
+        dispatchSwapState({ type: 'UPDATE_DEPENDENT', payload: '' })
       }
     }
-  }, [
-    independentValueParsed,
-    swapType,
-    outputReserveUSDX,
-    outputReserveToken,
-    inputReserveUSDX,
-    inputReserveToken,
-    independentField,
-    t
-  ])
+  }, [chainId, independentField, independentValueParsed, inputCoinReserveAtUsdtSwap, inputCoinReserveAtUsdxSwap, inputCurrency, inputTokenReserveAtUsdtSwap, inputTokenReserveAtUsdxSwap, outputCoinReserveAtUsdtSwap, outputCoinReserveAtUsdxSwap, outputCurrency, outputTokenReserveAtUsdtSwap, outputTokenReserveAtUsdxSwap, t])
 
   const [inverted, setInverted] = useState(false)
   const exchangeRate = getExchangeRate(inputValueParsed, inputDecimals, outputValueParsed, outputDecimals)
   const exchangeRateInverted = getExchangeRate(inputValueParsed, inputDecimals, outputValueParsed, outputDecimals, true)
 
-  const marketRate = getMarketRate(
-    swapType,
-    inputReserveUSDX,
-    inputReserveToken,
-    inputDecimals,
-    outputReserveUSDX,
-    outputReserveToken,
-    outputDecimals
-  )
+  const marketRate = exchangeAddress === USDXSWAP_ADDRESSES[chainId]
+    ? getMarketRate(
+        swapType,
+        USDX_DECIMALS,
+        inputCoinReserveAtUsdxSwap,
+        inputTokenReserveAtUsdxSwap,
+        inputDecimals,
+        outputCoinReserveAtUsdxSwap,
+        outputTokenReserveAtUsdxSwap,
+        outputDecimals,
+      )
+    : getMarketRate(
+        swapType,
+        USDT_DECIMALS,
+        inputCoinReserveAtUsdtSwap,
+        inputTokenReserveAtUsdtSwap,
+        inputDecimals,
+        outputCoinReserveAtUsdtSwap,
+        outputTokenReserveAtUsdtSwap,
+        outputDecimals,
+      )
 
   const percentSlippage =
     exchangeRate && marketRate
@@ -520,8 +565,8 @@ export default function ExchangePage({ initialCurrency }) {
   const highSlippageWarning = percentSlippage && percentSlippage.gte(ethers.utils.parseEther('.2')) // [20+%
 
   const isValid = sending
-    ? exchangeRate && inputError === null && outputError === null && independentError === null && recipientError === null
-    : exchangeRate && inputError === null && outputError === null && independentError === null
+    ? exchangeRate && inputError === null && independentError === null && recipientError === null
+    : exchangeRate && inputError === null && independentError === null
 
   const estimatedText = `(${t('estimated')})`
   function formatBalance(value) {
@@ -530,133 +575,44 @@ export default function ExchangePage({ initialCurrency }) {
 
   async function onSwap() {
     const deadline = Math.ceil(Date.now() / 1000) + DEADLINE_FROM_NOW
+    const value = ethers.constants.Zero
+    const comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
 
-    let estimate, method, args, value, comment
+    let estimate, method, args
     if (independentField === INPUT) {
       ReactGA.event({
         category: `${swapType}`,
         action: sending ? 'TransferInput' : 'SwapInput'
       })
 
-      if (swapType === USDX_TO_TOKEN) {
-        estimate = sending ? contract.estimate.USDXToTokenTransferInput : contract.estimate.USDXToTokenSwapInput
-        method = sending ? contract.USDXToTokenTransferInput : contract.USDXToTokenSwapInput
-        args = sending ? [
-          outputCurrency,
-          independentValueParsed,
-          dependentValueMinumum,
-          deadline,
-          recipient.address
-        ] : [
-          outputCurrency,
-          independentValueParsed,
-          dependentValueMinumum,
-          deadline
-        ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} USDx to ${outputValueFormatted} ${outputSymbol}`
-      } else if (swapType === TOKEN_TO_USDX) {
-        estimate = sending ? contract.estimate.tokenToUSDXTransferInput : contract.estimate.tokenToUSDXSwapInput
-        method = sending ? contract.tokenToUSDXTransferInput : contract.tokenToUSDXSwapInput
-        args = sending
-          ? [
-              inputCurrency,
-              independentValueParsed,
-              dependentValueMinumum,
-              deadline,
-              recipient.address
-            ]
-          : [inputCurrency, independentValueParsed, dependentValueMinumum, deadline]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} USDx`
-      } else if (swapType === TOKEN_TO_TOKEN) {
-        estimate = sending ? contract.estimate.tokenToTokenTransferInput : contract.estimate.tokenToTokenSwapInput
-        method = sending ? contract.tokenToTokenTransferInput : contract.tokenToTokenSwapInput
-        args = sending
-          ? [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMinumum,
-              deadline,
-              recipient.address,
-            ]
-          : [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMinumum,
-              deadline
-            ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      }
+      estimate = aggregatorContract.estimate.tradeInput
+      method = aggregatorContract.tradeInput
+      args = [
+        exchangeAddress,
+        inputCurrency,
+        independentValueParsed,
+        outputCurrency,
+        dependentValueMinimum,
+        deadline,
+        (sending ? recipient.address : account),
+      ]
     } else if (independentField === OUTPUT) {
       ReactGA.event({
         category: `${swapType}`,
         action: sending ? 'TransferOutput' : 'SwapOutput'
       })
-
-      if (swapType === USDX_TO_TOKEN) {
-        estimate = sending ? contract.estimate.USDXToTokenTransferOutput : contract.estimate.USDXToTokenSwapOutput
-        method = sending ? contract.USDXToTokenTransferOutput : contract.USDXToTokenSwapOutput
-        args = sending 
-          ? [
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline,
-              recipient.address
-            ] 
-          : [
-            outputCurrency,
-            independentValueParsed,
-            dependentValueMaximum,
-            deadline
-          ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} USDx to ${outputValueFormatted} ${outputSymbol}`
-      } else if (swapType === TOKEN_TO_USDX) {
-        estimate = sending ? contract.estimate.tokenToUSDXTransferOutput : contract.estimate.tokenToUSDXSwapOutput
-        method = sending ? contract.tokenToUSDXTransferOutput : contract.tokenToUSDXSwapOutput
-        args = sending
-          ? [
-              inputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline,
-              recipient.address
-            ]
-          : [
-              inputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline
-            ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} USDx`
-      } else if (swapType === TOKEN_TO_TOKEN) {
-        estimate = sending ? contract.estimate.tokenToTokenTransferOutput : contract.estimate.tokenToTokenSwapOutput
-        method = sending ? contract.tokenToTokenTransferOutput : contract.tokenToTokenSwapOutput
-        args = sending
-          ? [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline,
-              recipient.address
-            ]
-          : [
-              inputCurrency,
-              outputCurrency,
-              independentValueParsed,
-              dependentValueMaximum,
-              deadline
-            ]
-        value = ethers.constants.Zero
-        comment = `Swap ${inputValueFormatted} ${inputSymbol} to ${outputValueFormatted} ${outputSymbol}`
-      }
+      
+      estimate = aggregatorContract.estimate.tradeOutput
+      method = aggregatorContract.tradeOutput
+      args = [
+        exchangeAddress,
+        inputCurrency,
+        dependentValueMaximum,
+        outputCurrency,
+        independentValueParsed,
+        deadline,
+        (sending ? recipient.address : account),
+      ]
     }
 
     const estimatedGasLimit = await estimate(...args, { value })
@@ -699,6 +655,7 @@ export default function ExchangePage({ initialCurrency }) {
         }}
         showUnlock={showUnlock}
         selectedTokenAddress={inputCurrency}
+        selectedTokenExchangeAddress={AGGREGATOR_ADDRESSES[chainId]}
         value={inputValueFormatted}
         errorMessage={inputError ? inputError : independentField === INPUT ? independentError : ''}
         backgroundColor='linear-gradient(90deg,rgba(58,129,255,1),rgba(36,115,255,1))'
@@ -728,6 +685,7 @@ export default function ExchangePage({ initialCurrency }) {
           dispatchSwapState({ type: 'UPDATE_INDEPENDENT', payload: { value: outputValue, field: OUTPUT } })
         }}
         selectedTokenAddress={outputCurrency}
+        selectedTokenExchangeAddress={AGGREGATOR_ADDRESSES[chainId]}
         value={outputValueFormatted}
         errorMessage={independentField === OUTPUT ? independentError : ''}
         disableUnlock
@@ -760,7 +718,6 @@ export default function ExchangePage({ initialCurrency }) {
         slippageWarning={slippageWarning}
         highSlippageWarning={highSlippageWarning}
         inputError={inputError}
-        outputError={outputError}
         independentError={independentError}
         inputCurrency={inputCurrency}
         outputCurrency={outputCurrency}
@@ -774,7 +731,7 @@ export default function ExchangePage({ initialCurrency }) {
         outputSymbol={outputSymbol}
         inputDecimals={inputDecimals}
         outputDecimals={outputDecimals}
-        dependentValueMinumum={dependentValueMinumum}
+        dependentValueMinimum={dependentValueMinimum}
         dependentValueMaximum={dependentValueMaximum}
         dependentDecimals={dependentDecimals}
         independentDecimals={independentDecimals}

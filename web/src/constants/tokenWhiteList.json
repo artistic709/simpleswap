@@ -274,6 +274,11 @@
     "symbol": "USDC",
     "decimals": 6
   },
+  "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+    "NAME": "Tether USD",
+    "SYMBOL": "USDT",
+    "DECIMALS": 6
+  },
   "0xeb269732ab75A6fD61Ea60b06fE994cD32a83549": {
     "name": "UUDD",
     "symbol": "USDX",
