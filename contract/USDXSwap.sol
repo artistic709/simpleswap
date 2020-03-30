@@ -647,7 +647,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
             emit TransferSingle(msg.sender, address(0), msg.sender, uint256(token), liquidity_minted);
             return liquidity_minted;
 
-        } else {xw
+        } else {
             // minimum initial reserve of USDx is 0.000000001
             require(reserve_added >= 1000000000);
             uint256 token_amount = max_tokens;
