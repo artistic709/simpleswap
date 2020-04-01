@@ -6,10 +6,6 @@ import './interface/ITargetHandler.sol';
 import './interface/IDispatcher.sol';
 import './interface/IERC20.sol';    
 
-interface IFund {
-    function transferOut(address _tokenID, address _to, uint amount) external returns (bool);
-}
-
 contract Dispatcher is IDispatcher, DSAuth, DSMath {
 
     address token;
@@ -96,7 +92,7 @@ contract Dispatcher is IDispatcher, DSAuth, DSMath {
                     _amounts = sub(_amounts, amountsToTH);
                 }
                 if(amountsToTH > 0) {
-                    IFund(fundPool).transferOut(token, _th.targetHandlerAddr, amountsToTH);
+                    IERC20(token).transferFrom(fundPool, _th.targetHandlerAddr, amountsToTH);
                     ITargetHandler(_th.targetHandlerAddr).deposit(amountsToTH);
                 }
             }

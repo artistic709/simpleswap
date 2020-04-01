@@ -153,8 +153,12 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
 
     function checkAndWithdraw(address token, address to, uint256 amount) internal {
         uint256 cash = ERC20(token).balanceOf(address(this));
-        if(cash < amount) 
-            IDispatcher(DispatcherOf[token]).withdrawPrinciple(amount.sub(cash));
+        if(cash < amount) {
+            IDispatcher(DispatcherOf[token]).withdrawProfit();
+            cash = ERC20(token).balanceOf(address(this));
+            if(cash < amount)
+                IDispatcher(DispatcherOf[token]).withdrawPrinciple(amount.sub(cash));
+        }
         require(doTransferOut(token, to, amount));
     }
 
@@ -167,6 +171,7 @@ contract SimpleSwap is ERC1155withAdapter, Admin {
         DispatcherOf[token] = dispatcher;
         require(IDispatcher(dispatcher).newOwner() == address(this));
         IDispatcher(dispatcher).acceptOwnership();
+        IDispatcher(dispatcher).setProfitBeneficiary(address(this));
         doApproval(token, dispatcher, uint256(-1));
     }
 
