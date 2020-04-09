@@ -5,7 +5,8 @@ export const AGGREGATOR_ADDRESSES = {
 
 export const USDXSWAP_ADDRESSES = {
   1: '', // real address on the mainnet
-  4: '0xF5A8d81DeACCd0996A441cc5177d12d33303aDF9',
+  4: '0xfA5D33176c09CcdcAcD41Dca302c367d84bfE621'
+  // 4: '0xF5A8d81DeACCd0996A441cc5177d12d33303aDF9', // without dispatcher
 }
 
 export const USDTSWAP_ADDRESSES = {
@@ -15,7 +16,8 @@ export const USDTSWAP_ADDRESSES = {
 
 export const USDX_ADDRESSES = {
   1: '0xeb269732ab75A6fD61Ea60b06fE994cD32a83549',
-  4: '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371'
+  4: '0xd96cc7f80c1cb595ebcdc072531e1799b3a2436e',
+  // 4: '0xdBCFff49D5F48DDf6e6df1f2C9B96E1FC0F31371'
 }
 
 export const USDX_DECIMALS = 18
