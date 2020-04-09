@@ -359,7 +359,11 @@ export default function AddLiquidity() {
 
   const { coinReserve, tokenReserve } = useExchangeReserves(exchangeAddress, outputCurrency)
   
-  const isNewExchange = !!(coinReserve && tokenReserve && coinReserve.isZero() && tokenReserve.isZero())
+  const isNewExchange = !!(
+    totalPoolTokens && totalPoolTokens.isZero() &&
+    coinReserve &&  coinReserve.isZero() &&
+    tokenReserve && tokenReserve.isZero()
+  )
 
   // 18 outputDecimals
   const poolTokenPercentage =
